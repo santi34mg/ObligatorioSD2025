@@ -6,7 +6,7 @@ function App() {
   const [token, setToken] = useState("");
 
   const register = async () => {
-    const res = await fetch("http://localhost:8000/auth/register", {
+    const res = await fetch("http://localhost/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -16,7 +16,7 @@ function App() {
   };
 
   const login = async () => {
-    const res = await fetch("http://localhost:8000/auth/jwt/login", {
+    const res = await fetch("http://localhost/auth/jwt/login", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ username: email, password }),

@@ -1,28 +1,46 @@
 version: "3.9"
 
 services:
+  traefik:
+    image: traefik:v3.2
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080" # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # in dev nginx is not used, vite serves files directly for hot reload
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    restart: always
     volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
       - "5173:5173"
+    labels:
+      - "traefik.enable=false"
+    depends_on:
+      - traefik
 
   auth-service:
     build:
       context: ./services/auth-service
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+      - "traefik.http.services.auth.loadbalancer.server.port=8000"
     depends_on:
       - db
-    networks:
-      - app-network
 
   db:
     image: postgres:16-alpine
@@ -30,15 +48,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
-    networks:
-      - app-network
-
-networks:
-  app-network:
 
 volumes:
   db_data:

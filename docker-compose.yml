@@ -1,19 +1,41 @@
 version: "3.9"
 
+networks:
+  traefik:
+    driver: bridge
+
 services:
   traefik:
     image: traefik:v3.2
+    container_name: traefik
     command:
       - "--api.dashboard=true"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
     ports:
       - "80:80"
-      - "8080:8080" # Traefik dashboard
+      - "8080:8080" # dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik
 
-  # in dev nginx is not used, vite serves files directly for hot reload
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin # TODO: change
+      RABBITMQ_DEFAULT_PASS: admin # TODO: change
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)"
+      - "traefik.http.routers.rabbitmq.entrypoints=web"
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+
   frontend:
     build:
       context: ./frontend
@@ -41,6 +63,8 @@ services:
       - "traefik.http.services.auth.loadbalancer.server.port=8000"
     depends_on:
       - db
+    networks:
+      - traefik
 
   db:
     image: postgres:16-alpine

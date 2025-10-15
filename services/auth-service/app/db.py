@@ -1,3 +1,4 @@
+import os
 from typing import AsyncGenerator
 
 from fastapi import Depends
@@ -6,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+# Usar variable de entorno o valor por defecto
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@db:5432/postgres")
 Base: DeclarativeMeta = declarative_base()
 
 

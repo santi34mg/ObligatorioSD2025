@@ -121,6 +121,20 @@ services:
     networks:
       - traefik
 
+  moderation-service:
+    build:
+      context: ./services/moderation-service
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
+      - "traefik.http.services.moderation.loadbalancer.server.port=8000"
+    ports:
+      - "8004:8000"
+    networks:
+      - traefik
+
+
 
 volumes:
   db_data:

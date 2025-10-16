@@ -9,25 +9,55 @@ services:
     image: traefik:v3.2
     container_name: traefik
     command:
+      # API Dashboard
       - "--api.dashboard=true"
       - "--api.insecure=true"
+      
+      # Providers
       - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      
+      # Entry Points
       - "--entrypoints.web.address=:80"
+      
+      # Service Discovery
+      - "--providers.docker.watch=true"
+      
+      # Logging
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      
+      # Health Check
+      - "--ping=true"
+      
     ports:
       - "80:80"
-      - "8080:8080" # dashboard
+      - "443:443"
+      - "8080:8080"   # Dashboard
+      - "8082:8082"   # Metrics (Prometheus)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik-config:/etc/traefik:ro
     networks:
       - traefik
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=web"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # Metrics
+      - "traefik.http.routers.traefik-metrics.rule=Host(`metrics.localhost`)"
+      - "traefik.http.routers.traefik-metrics.entrypoints=web"
+      - "traefik.http.routers.traefik-metrics.service=prometheus@internal"
 
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
     networks:
       - traefik
     labels:
@@ -47,24 +77,52 @@ services:
     ports:
       - "5173:5173"
     labels:
-      - "traefik.enable=false"
+      - "traefik.enable=true"
+      # Router para el frontend (HTTP y HTTPS)
+      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend.entrypoints=web,websecure"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
     depends_on:
       - traefik
 
-  auth-service:
-    build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
-      - "traefik.http.services.auth.loadbalancer.server.port=8000"
-    depends_on:
-      - db
-    networks:
-      - traefik
+# auth-service:
+#   build:
+#     context: .
+#     dockerfile: services/auth-service/Dockerfile
+#   environment:
+#     - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+#   labels:
+#     - "traefik.enable=true"
+#     # Router para API REST (HTTP y HTTPS)
+#     - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+#     - "traefik.http.routers.auth.entrypoints=web,websecure"
+#     - "traefik.http.routers.auth.service=auth"
+#     - "traefik.http.services.auth.loadbalancer.server.port=8000"
+#   depends_on:
+#     - db
+#     - rabbitmq
+#   networks:
+#     - traefik
+
+# moderation-service:
+#   build:
+#     context: .
+#     dockerfile: services/moderation-service/Dockerfile
+#   environment:
+#     - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+#   labels:
+#     - "traefik.enable=true"
+#     # Router para Moderation Service (HTTP y HTTPS)
+#     - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
+#     - "traefik.http.routers.moderation.entrypoints=web,websecure"
+#     - "traefik.http.routers.moderation.service=moderation"
+#     - "traefik.http.services.moderation.loadbalancer.server.port=8001"
+#   depends_on:
+#     - rabbitmq
+#   networks:
+#     - traefik
+#   restart: unless-stopped
 
   db:
     image: postgres:16-alpine
@@ -74,6 +132,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - traefik
 
 
   content-service:

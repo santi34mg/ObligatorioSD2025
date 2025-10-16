@@ -5,12 +5,13 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copiar dependencias e instalarlas
-COPY requirements.txt .
+COPY services/auth-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar la aplicación
-COPY main.py .
-COPY app/ ./app/
+COPY services/auth-service/main.py .
+COPY services/auth-service/app/ ./app/
+COPY shared/ ./shared/
 
 # Exponer puerto
 EXPOSE 8000

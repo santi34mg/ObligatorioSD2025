@@ -1,0 +1,120 @@
+# Configuración principal de Traefik
+api:
+  dashboard: true
+  insecure: true
+
+# Providers
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    watch: true
+    network: traefik
+
+# Entry Points
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+# Load Balancing
+serversTransport:
+  insecureSkipVerify: true
+
+# Logging
+log:
+  level: INFO
+
+accessLog:
+  format: json
+  fields:
+    defaultMode: keep
+    names:
+      ClientUsername: drop
+    headers:
+      defaultMode: keep
+      names:
+        User-Agent: keep
+        Authorization: drop
+        Content-Type: keep
+
+# Metrics (Prometheus)
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+# Health Check
+ping: {}
+
+# Rate Limiting (middleware)
+http:
+  middlewares:
+    # Rate limiting por IP
+    rate-limit:
+      rateLimit:
+        burst: 100
+        average: 50
+    
+    # Rate limiting por usuario
+    rate-limit-user:
+      rateLimit:
+        burst: 200
+        average: 100
+    
+    # CORS
+    cors:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowOriginList:
+          - "http://localhost:5173"
+          - "https://localhost:5173"
+        accessControlMaxAge: 86400
+        addVaryHeader: true
+    
+    # Security Headers
+    security-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        browserXssFilter: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+    
+    # Compression
+    compress:
+      compress: {}
+    
+    # Circuit Breaker
+    circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.3"
+    
+    # Retry
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms
+
+# TLS Configuration (usar variables de entorno)
+tls:
+  options:
+    default:
+      sslProtocols:
+        - "TLSv1.2"
+        - "TLSv1.3"

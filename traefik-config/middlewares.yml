@@ -1,0 +1,70 @@
+# Middlewares específicos para microservicios
+
+http:
+  middlewares:
+    # Auth Service Middlewares
+    auth-service-middleware:
+      chain:
+        middlewares:
+          - cors
+          - rate-limit
+          - security-headers
+          - compress
+    
+    # Content Service Middlewares
+    content-service-middleware:
+      chain:
+        middlewares:
+          - cors
+          - rate-limit-user  # Usuarios autenticados tienen límites más altos
+          - security-headers
+          - compress
+          - circuit-breaker
+    
+    # Communication Service Middlewares
+    communication-service-middleware:
+      chain:
+        middlewares:
+          - cors
+          - rate-limit
+          - security-headers
+          - compress
+          - retry
+    
+    # Collaboration Service Middlewares
+    collaboration-service-middleware:
+      chain:
+        middlewares:
+          - cors
+          - rate-limit
+          - security-headers
+          - compress
+    
+    # Moderation Service Middlewares
+    moderation-service-middleware:
+      chain:
+        middlewares:
+          - cors
+          - rate-limit-user
+          - security-headers
+          - compress
+          - circuit-breaker
+    
+    # WebSocket Middlewares
+    websocket-middleware:
+      chain:
+        middlewares:
+          - cors
+          - security-headers
+          - compress
+    
+    # API Gateway Middlewares
+    api-gateway-middleware:
+      chain:
+        middlewares:
+          - cors
+          - rate-limit
+          - security-headers
+          - compress
+          - circuit-breaker
+          - retry

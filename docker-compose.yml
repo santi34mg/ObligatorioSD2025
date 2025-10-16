@@ -134,6 +134,22 @@ services:
     networks:
       - traefik
 
+  communication-service:
+      build:
+        context: ./services/communication-service
+        dockerfile: Dockerfile
+      ports:
+        - "8005:8000"
+      depends_on:
+        - mongo
+      networks:
+        - traefik
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.communication.rule=PathPrefix(`/communication`)"
+        - "traefik.http.services.communication.loadbalancer.server.port=8000"
+
+
 
 
 volumes:

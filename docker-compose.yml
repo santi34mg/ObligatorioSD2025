@@ -103,6 +103,25 @@ services:
     ports:
       - "9000:9000"
 
+  collaboration-service:
+    build:
+      context: ./services/collaboration-service
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_DB=umshare
+    depends_on:
+      - mongo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.collab.rule=PathPrefix(`/collab`)"
+      - "traefik.http.services.collab.loadbalancer.server.port=8000"
+    ports:
+      - "8003:8000"   # acceso directo opcional
+    networks:
+      - traefik
+
+
 volumes:
   db_data:
   minio_data:

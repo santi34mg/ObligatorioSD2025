@@ -33,7 +33,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"   # Dashboard
+      - "8081:8080"   # Dashboard (cambiado a 8081)
       - "8082:8082"   # Metrics (Prometheus)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -194,12 +194,30 @@ services:
     networks:
       - traefik
 
+  websocket-service:
+    build:
+      context: ./services/websocket-service
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)"
+      - "traefik.http.services.websocket.loadbalancer.server.port=8000"
+      # Configuración específica para WebSockets
+      - "traefik.http.routers.websocket.middlewares=websocket-headers"
+      - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Connection=Upgrade"
+      - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Upgrade=websocket"
+    ports:
+      - "8005:8000"
+    networks:
+      - traefik
+    restart: unless-stopped
+
   communication-service:
       build:
         context: ./services/communication-service
         dockerfile: Dockerfile
       ports:
-        - "8005:8000"
+        - "8006:8000"
       depends_on:
         - mongo
       networks:

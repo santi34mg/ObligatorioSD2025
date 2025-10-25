@@ -11,9 +11,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -32,7 +34,8 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost/auth/register", {
+      // Register the user
+      const registerResponse = await fetch("http://localhost/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -43,13 +46,32 @@ export default function Register() {
         }),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
+      if (!registerResponse.ok) {
+        const data = await registerResponse.json();
         throw new Error(data.detail || "Registration failed");
       }
 
-      // Redirect to login after successful registration
-      navigate("/login");
+      // Automatically log in after successful registration
+      const loginResponse = await fetch("http://localhost/auth/jwt/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          username: email,
+          password: password,
+        }),
+      });
+
+      if (!loginResponse.ok) {
+        throw new Error("Login after registration failed");
+      }
+
+      const loginData = await loginResponse.json();
+      await login(loginData.access_token);
+
+      // Redirect to home page
+      navigate("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

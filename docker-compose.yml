@@ -58,6 +58,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - traefik
     labels:
@@ -82,49 +87,62 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.priority=1"
       - "traefik.http.services.frontend.loadbalancer.server.port=5173"
     depends_on:
       - traefik
     networks:
       - traefik
 
-  # auth-service:
-  #   build:
-  #     context: .
-  #     dockerfile: services/auth-service/Dockerfile
-  #   environment:
-  #     - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-  #   labels:
-  #     - "traefik.enable=true"
-  #     # Router para API REST (HTTP y HTTPS)
-  #     - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
-  #     - "traefik.http.routers.auth.entrypoints=web,websecure"
-  #     - "traefik.http.routers.auth.service=auth"
-  #     - "traefik.http.services.auth.loadbalancer.server.port=8000"
-  #   depends_on:
-  #     - db
-  #     - rabbitmq
-  #   networks:
-  #     - traefik
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    labels:
+      - "traefik.enable=true"
+      # Router para API REST (HTTP y HTTPS)
+      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`) || PathPrefix(`/users`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.routers.auth.service=auth"
+      - "traefik.http.routers.auth.priority=100"
+      - "traefik.http.services.auth.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.auth.middlewares=auth-cors"
+    depends_on:
+      db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - traefik
+    ports:
+      - "8002:8000"
 
-  # moderation-service:
-  #   build:
-  #     context: .
-  #     dockerfile: services/moderation-service/Dockerfile
-  #   environment:
-  #     - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
-  #   labels:
-  #     - "traefik.enable=true"
-  #     # Router para Moderation Service (HTTP y HTTPS)
-  #     - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
-  #     - "traefik.http.routers.moderation.entrypoints=web,websecure"
-  #     - "traefik.http.routers.moderation.service=moderation"
-  #     - "traefik.http.services.moderation.loadbalancer.server.port=8001"
-  #   depends_on:
-  #     - rabbitmq
-  #   networks:
-  #     - traefik
-  #   restart: unless-stopped
+  moderation-service:
+    build:
+      context: .
+      dockerfile: services/moderation-service/Dockerfile
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    labels:
+      - "traefik.enable=true"
+      # Router para Moderation Service (HTTP y HTTPS)
+      - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
+      - "traefik.http.routers.moderation.entrypoints=web,websecure"
+      - "traefik.http.routers.moderation.service=moderation"
+      - "traefik.http.services.moderation.loadbalancer.server.port=8001"
+    depends_on:
+      - rabbitmq
+    networks:
+      - traefik
+    restart: unless-stopped
 
   db:
     image: postgres:16-alpine

@@ -77,16 +77,23 @@ async def on_startup():
     
     await create_db_and_tables()
     
-    # Conectar a RabbitMQ
-    rabbitmq_client = create_rabbitmq_client("auth-service")
-    await rabbitmq_client.connect()
-    event_publisher = EventPublisher(rabbitmq_client)
-    
-    # Configurar consumers para eventos que este servicio debe escuchar
-    await rabbitmq_client.consume_events(
-        [SystemEvents.MODERATION_APPROVED, SystemEvents.MODERATION_REJECTED],
-        handle_moderation_event
-    )
+    # Conectar a RabbitMQ (con manejo de errores)
+    try:
+        rabbitmq_client = create_rabbitmq_client("auth-service")
+        await rabbitmq_client.connect()
+        event_publisher = EventPublisher(rabbitmq_client)
+        
+        # Configurar consumers para eventos que este servicio debe escuchar
+        await rabbitmq_client.consume_events(
+            [SystemEvents.MODERATION_APPROVED, SystemEvents.MODERATION_REJECTED],
+            handle_moderation_event
+        )
+        print("✓ Auth service conectado a RabbitMQ")
+    except Exception as e:
+        print(f"⚠ Warning: No se pudo conectar a RabbitMQ: {e}")
+        print("⚠ El servicio continuará sin eventos asíncronos")
+        rabbitmq_client = None
+        event_publisher = None
 
 @app.on_event("shutdown")
 async def on_shutdown():

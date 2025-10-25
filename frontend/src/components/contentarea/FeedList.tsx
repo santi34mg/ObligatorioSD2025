@@ -1,5 +1,6 @@
-import { PostCard } from "./PostCard";
-export function PostList() {
+import { PostContainer } from "../post/PostContainer";
+
+export function Feed() {
   // Mock data for posts
   const posts = [
     {
@@ -41,11 +42,15 @@ export function PostList() {
       likes: 87,
     },
   ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostContainer key={post.id} post={post} />
       ))}
     </div>
   );
 }
+
+// Export as PostList for backward compatibility
+export { Feed as PostList };

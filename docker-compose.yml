@@ -12,29 +12,29 @@ services:
       # API Dashboard
       - "--api.dashboard=true"
       - "--api.insecure=true"
-      
+
       # Providers
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      
+
       # Entry Points
       - "--entrypoints.web.address=:80"
-      
+
       # Service Discovery
       - "--providers.docker.watch=true"
-      
+
       # Logging
       - "--log.level=INFO"
       - "--accesslog=true"
-      
+
       # Health Check
       - "--ping=true"
-      
+
     ports:
       - "80:80"
       - "443:443"
-      - "8081:8080"   # Dashboard (cambiado a 8081)
-      - "8082:8082"   # Metrics (Prometheus)
+      - "8081:8080" # Dashboard (cambiado a 8081)
+      - "8082:8082" # Metrics (Prometheus)
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik-config:/etc/traefik:ro
@@ -78,51 +78,53 @@ services:
       - "5173:5173"
     labels:
       - "traefik.enable=true"
-      # Router para el frontend (HTTP y HTTPS)
+      # Router para el frontend (HTTP only for local dev)
       - "traefik.http.routers.frontend.rule=Host(`localhost`)"
-      - "traefik.http.routers.frontend.entrypoints=web,websecure"
+      - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.services.frontend.loadbalancer.server.port=5173"
     depends_on:
       - traefik
+    networks:
+      - traefik
 
-# auth-service:
-#   build:
-#     context: .
-#     dockerfile: services/auth-service/Dockerfile
-#   environment:
-#     - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-#   labels:
-#     - "traefik.enable=true"
-#     # Router para API REST (HTTP y HTTPS)
-#     - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
-#     - "traefik.http.routers.auth.entrypoints=web,websecure"
-#     - "traefik.http.routers.auth.service=auth"
-#     - "traefik.http.services.auth.loadbalancer.server.port=8000"
-#   depends_on:
-#     - db
-#     - rabbitmq
-#   networks:
-#     - traefik
+  # auth-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/auth-service/Dockerfile
+  #   environment:
+  #     - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+  #   labels:
+  #     - "traefik.enable=true"
+  #     # Router para API REST (HTTP y HTTPS)
+  #     - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
+  #     - "traefik.http.routers.auth.entrypoints=web,websecure"
+  #     - "traefik.http.routers.auth.service=auth"
+  #     - "traefik.http.services.auth.loadbalancer.server.port=8000"
+  #   depends_on:
+  #     - db
+  #     - rabbitmq
+  #   networks:
+  #     - traefik
 
-# moderation-service:
-#   build:
-#     context: .
-#     dockerfile: services/moderation-service/Dockerfile
-#   environment:
-#     - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
-#   labels:
-#     - "traefik.enable=true"
-#     # Router para Moderation Service (HTTP y HTTPS)
-#     - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
-#     - "traefik.http.routers.moderation.entrypoints=web,websecure"
-#     - "traefik.http.routers.moderation.service=moderation"
-#     - "traefik.http.services.moderation.loadbalancer.server.port=8001"
-#   depends_on:
-#     - rabbitmq
-#   networks:
-#     - traefik
-#   restart: unless-stopped
+  # moderation-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/moderation-service/Dockerfile
+  #   environment:
+  #     - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+  #   labels:
+  #     - "traefik.enable=true"
+  #     # Router para Moderation Service (HTTP y HTTPS)
+  #     - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
+  #     - "traefik.http.routers.moderation.entrypoints=web,websecure"
+  #     - "traefik.http.routers.moderation.service=moderation"
+  #     - "traefik.http.services.moderation.loadbalancer.server.port=8001"
+  #   depends_on:
+  #     - rabbitmq
+  #   networks:
+  #     - traefik
+  #   restart: unless-stopped
 
   db:
     image: postgres:16-alpine
@@ -134,7 +136,6 @@ services:
       - db_data:/var/lib/postgresql/data
     networks:
       - traefik
-
 
   content-service:
     build: ./services/content-service
@@ -148,11 +149,21 @@ services:
     depends_on:
       - mongo
       - minio
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.content.rule=PathPrefix(`/content`)"
+      - "traefik.http.routers.content.entrypoints=web"
+      - "traefik.http.routers.content.middlewares=cors"
+      - "traefik.http.services.content.loadbalancer.server.port=8000"
+    networks:
+      - traefik
 
   mongo:
     image: mongo
     ports:
       - "27017:27017"
+    networks:
+      - traefik
 
   minio:
     image: minio/minio
@@ -162,6 +173,8 @@ services:
     command: server /data
     ports:
       - "9000:9000"
+    networks:
+      - traefik
 
   collaboration-service:
     build:
@@ -175,9 +188,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.collab.rule=PathPrefix(`/collab`)"
+      - "traefik.http.routers.collab.entrypoints=web"
+      - "traefik.http.routers.collab.middlewares=cors"
       - "traefik.http.services.collab.loadbalancer.server.port=8000"
     ports:
-      - "8003:8000"   # acceso directo opcional
+      - "8003:8000" # acceso directo opcional
     networks:
       - traefik
 
@@ -188,6 +203,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
+      - "traefik.http.routers.moderation.entrypoints=web"
+      - "traefik.http.routers.moderation.middlewares=cors"
       - "traefik.http.services.moderation.loadbalancer.server.port=8000"
     ports:
       - "8004:8000"
@@ -201,9 +218,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)"
+      - "traefik.http.routers.websocket.entrypoints=web"
       - "traefik.http.services.websocket.loadbalancer.server.port=8000"
       # Configuración específica para WebSockets
-      - "traefik.http.routers.websocket.middlewares=websocket-headers"
+      - "traefik.http.routers.websocket.middlewares=websocket-headers,cors"
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Connection=Upgrade"
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Upgrade=websocket"
     ports:
@@ -213,22 +231,21 @@ services:
     restart: unless-stopped
 
   communication-service:
-      build:
-        context: ./services/communication-service
-        dockerfile: Dockerfile
-      ports:
-        - "8006:8000"
-      depends_on:
-        - mongo
-      networks:
-        - traefik
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.communication.rule=PathPrefix(`/communication`)"
-        - "traefik.http.services.communication.loadbalancer.server.port=8000"
-
-
-
+    build:
+      context: ./services/communication-service
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8000"
+    depends_on:
+      - mongo
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.communication.rule=PathPrefix(`/communication`)"
+      - "traefik.http.routers.communication.entrypoints=web"
+      - "traefik.http.routers.communication.middlewares=cors"
+      - "traefik.http.services.communication.loadbalancer.server.port=8000"
 
 volumes:
   db_data:

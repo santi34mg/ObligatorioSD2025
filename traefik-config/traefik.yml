@@ -10,16 +10,14 @@ providers:
     exposedByDefault: false
     watch: true
     network: traefik
+  file:
+    filename: "/etc/traefik/middlewares.yml"
+    watch: true
 
 # Entry Points
 entryPoints:
   web:
     address: ":80"
-    http:
-      redirections:
-        entrypoint:
-          to: websecure
-          scheme: https
   websecure:
     address: ":443"
 
@@ -62,13 +60,13 @@ http:
       rateLimit:
         burst: 100
         average: 50
-    
+
     # Rate limiting por usuario
     rate-limit-user:
       rateLimit:
         burst: 200
         average: 100
-    
+
     # CORS
     cors:
       headers:
@@ -77,13 +75,17 @@ http:
           - POST
           - PUT
           - DELETE
+          - PATCH
           - OPTIONS
         accessControlAllowOriginList:
           - "http://localhost:5173"
-          - "https://localhost:5173"
+          - "http://localhost"
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowCredentials: true
         accessControlMaxAge: 86400
         addVaryHeader: true
-    
+
     # Security Headers
     security-headers:
       headers:
@@ -91,20 +93,16 @@ http:
         contentTypeNosniff: true
         browserXssFilter: true
         referrerPolicy: "strict-origin-when-cross-origin"
-        forceSTSHeader: true
-        stsIncludeSubdomains: true
-        stsPreload: true
-        stsSeconds: 31536000
-    
+
     # Compression
     compress:
       compress: {}
-    
+
     # Circuit Breaker
     circuit-breaker:
       circuitBreaker:
         expression: "NetworkErrorRatio() > 0.3"
-    
+
     # Retry
     retry:
       retry:

@@ -15,12 +15,12 @@ async def current_user(
 ) -> UserMeta:
     return UserMeta(user_id=x_user_id, name=x_user_name)
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "ok"}
 
 # Crear hilo
-@app.post("/threads", response_model=ThreadOut)
+@app.post("/api/threads", response_model=ThreadOut)
 async def create_thread(payload: ThreadCreate, db=Depends(get_db), user: UserMeta = Depends(current_user)):
     doc = {
         "title": payload.title,
@@ -44,7 +44,7 @@ async def create_thread(payload: ThreadCreate, db=Depends(get_db), user: UserMet
     return out
 
 # Listar hilos
-@app.get("/threads", response_model=List[ThreadOut])
+@app.get("/api/threads", response_model=List[ThreadOut])
 async def list_threads(db=Depends(get_db), q: Optional[str] = None, limit: int = 20, skip: int = 0):
     coll = db["threads"]
     find = {"status": "published"}
@@ -68,7 +68,7 @@ async def list_threads(db=Depends(get_db), q: Optional[str] = None, limit: int =
     return items
 
 # Obtener un hilo
-@app.get("/threads/{thread_id}", response_model=ThreadOut)
+@app.get("/api/threads/{thread_id}", response_model=ThreadOut)
 async def get_thread(thread_id: str, db=Depends(get_db)):
     t = await db["threads"].find_one({"_id": ObjectId(thread_id)})
     if not t:
@@ -84,7 +84,7 @@ async def get_thread(thread_id: str, db=Depends(get_db)):
     )
 
 # Comentar un hilo
-@app.post("/threads/{thread_id}/comments", response_model=CommentOut)
+@app.post("/api/threads/{thread_id}/comments", response_model=CommentOut)
 async def add_comment(thread_id: str, payload: CommentCreate, db=Depends(get_db), user: UserMeta = Depends(current_user)):
     if not ObjectId.is_valid(thread_id):
         raise HTTPException(status_code=400, detail="Invalid thread id")
@@ -111,7 +111,7 @@ async def add_comment(thread_id: str, payload: CommentCreate, db=Depends(get_db)
     )
 
 # Listar comentarios de un hilo
-@app.get("/threads/{thread_id}/comments", response_model=List[CommentOut])
+@app.get("/api/threads/{thread_id}/comments", response_model=List[CommentOut])
 async def list_comments(thread_id: str, db=Depends(get_db), limit: int = 50, skip: int = 0):
     if not ObjectId.is_valid(thread_id):
         raise HTTPException(status_code=400, detail="Invalid thread id")

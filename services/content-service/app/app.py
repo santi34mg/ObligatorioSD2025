@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 app = FastAPI(title="Content Service")
 
-@app.post("/content/upload")
+@app.post("/api/content/upload")
 async def upload_file(
     file: UploadFile = File(...),
     title: str = Form(...),

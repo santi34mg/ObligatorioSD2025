@@ -1,7 +1,7 @@
 import { PostContainer, type Post } from "../post/PostContainer";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "../ui/card";
-import { FloatingActionButton } from "../FloatingActionButton";
+import { FloatingActionButton } from "./CreateButton";
 
 function EmptyFeedState() {
   return (

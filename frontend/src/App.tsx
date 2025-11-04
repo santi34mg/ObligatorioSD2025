@@ -9,7 +9,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import UploadDocument from "./pages/UploadDocument";
 import Materials from "./pages/Materials";
-import Chats from "./pages/Chats";
+import Connections from "./pages/Connections";
 
 export default function App() {
   return (
@@ -26,7 +26,7 @@ export default function App() {
                   <Layout>
                     <Routes>
                       <Route path="/" element={<Materials />} />
-                      <Route path="/connections" element={<Chats />} />
+                      <Route path="/connections" element={<Connections />} />
                       <Route
                         path="/upload/document"
                         element={<UploadDocument />}

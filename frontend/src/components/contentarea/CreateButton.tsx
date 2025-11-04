@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export function FloatingActionButton() {
   const navigate = useNavigate();
@@ -16,8 +17,7 @@ export function FloatingActionButton() {
   };
 
   const handleDiscussion = () => {
-    console.log("Discussion clicked");
-    // Add your discussion creation logic here
+    toast.info("Sorry, this feature is coming soon!");
   };
 
   return (

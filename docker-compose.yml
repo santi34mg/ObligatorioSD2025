@@ -84,7 +84,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para el frontend - exclude API paths
-      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/auth`) && !PathPrefix(`/users`) && !PathPrefix(`/content`) && !PathPrefix(`/collab`) && !PathPrefix(`/ws`) && !PathPrefix(`/communication`) && !PathPrefix(`/moderation`) && !PathPrefix(`/friendships`)"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=1"
@@ -104,7 +104,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para API REST (HTTP y HTTPS)
-      - "traefik.http.routers.auth.rule=PathPrefix(`/auth`) || PathPrefix(`/users`)"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/users`)"
       - "traefik.http.routers.auth.entrypoints=web"
       - "traefik.http.routers.auth.service=auth"
       - "traefik.http.routers.auth.priority=100"
@@ -135,7 +135,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para Friendship API
-      - "traefik.http.routers.friendship.rule=PathPrefix(`/friendships`)"
+      - "traefik.http.routers.friendship.rule=PathPrefix(`/api/friendships`)"
       - "traefik.http.routers.friendship.entrypoints=web"
       - "traefik.http.routers.friendship.service=friendship"
       - "traefik.http.routers.friendship.priority=100"
@@ -153,6 +153,35 @@ services:
       - traefik
     ports:
       - "8007:8001"
+
+  users-service:
+    build:
+      context: .
+      dockerfile: services/users-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
+    labels:
+      - "traefik.enable=true"
+      # Router para Users API
+      - "traefik.http.routers.users-service.rule=PathPrefix(`/api/users`)"
+      - "traefik.http.routers.users-service.entrypoints=web"
+      - "traefik.http.routers.users-service.service=users-service"
+      - "traefik.http.routers.users-service.priority=100"
+      - "traefik.http.services.users-service.loadbalancer.server.port=8003"
+      # CORS headers
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.users-service.middlewares=users-service-cors"
+    depends_on:
+      db:
+        condition: service_started
+    networks:
+      - traefik
+    ports:
+      - "8008:8003"
 
   content-service:
     build:
@@ -172,7 +201,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.content.rule=PathPrefix(`/content`)"
+      - "traefik.http.routers.content.rule=PathPrefix(`/api/content`)"
       - "traefik.http.routers.content.entrypoints=web"
       - "traefik.http.routers.content.priority=100"
       - "traefik.http.routers.content.middlewares=cors"
@@ -195,7 +224,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para Moderation Service (HTTP y HTTPS)
-      - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
+      - "traefik.http.routers.moderation.rule=PathPrefix(`/api/moderation`)"
       - "traefik.http.routers.moderation.entrypoints=web,websecure"
       - "traefik.http.routers.moderation.priority=100"
       - "traefik.http.routers.moderation.service=moderation"
@@ -217,7 +246,7 @@ services:
       - mongo
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.collab.rule=PathPrefix(`/collab`)"
+      - "traefik.http.routers.collab.rule=PathPrefix(`/api/collab`)"
       - "traefik.http.routers.collab.entrypoints=web"
       - "traefik.http.routers.collab.priority=100"
       - "traefik.http.routers.collab.middlewares=cors"
@@ -233,7 +262,7 @@ services:
       dockerfile: Dockerfile
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)"
+      - "traefik.http.routers.websocket.rule=PathPrefix(`/api/ws`)"
       - "traefik.http.routers.websocket.entrypoints=web"
       - "traefik.http.routers.websocket.priority=100"
       - "traefik.http.services.websocket.loadbalancer.server.port=8000"
@@ -259,7 +288,7 @@ services:
       - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.communication.rule=PathPrefix(`/communication`)"
+      - "traefik.http.routers.communication.rule=PathPrefix(`/api/communication`)"
       - "traefik.http.routers.communication.entrypoints=web"
       - "traefik.http.routers.communication.priority=100"
       - "traefik.http.routers.communication.middlewares=cors"

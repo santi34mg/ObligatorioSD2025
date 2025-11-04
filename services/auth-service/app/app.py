@@ -9,31 +9,31 @@ from shared.rabbitmq_config import SystemEvents
 app = FastAPI()
 
 app.include_router(
-    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
+    fastapi_users.get_auth_router(auth_backend), prefix="/api/auth/jwt", tags=["auth"]
 )
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
+    prefix="/api/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_reset_password_router(),
-    prefix="/auth",
+    prefix="/api/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_verify_router(UserRead),
-    prefix="/auth",
+    prefix="/api/auth",
     tags=["auth"],
 )
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
-    prefix="/users",
+    prefix="/api/users",
     tags=["users"],
 )
 
 
-@app.get("/authenticated-route")
+@app.get("/api/authenticated-route")
 async def authenticated_route(user: User = Depends(current_active_user)):
     global event_publisher
     
@@ -47,7 +47,7 @@ async def authenticated_route(user: User = Depends(current_active_user)):
     
     return {"message": f"Hello {user.email}!"}
 
-@app.post("/auth/register-with-events")
+@app.post("/api/auth/register-with-events")
 async def register_with_events(user_data: UserCreate):
     """Endpoint de ejemplo que registra usuario y publica evento"""
     global event_publisher

@@ -2,8 +2,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Search, MoreVertical, Loader2 } from "lucide-react";
+import {
+  Send,
+  Search,
+  MoreVertical,
+  Loader2,
+  Users,
+  UserPlus,
+} from "lucide-react";
 import { ChatProvider, useChatContext } from "@/contexts/ChatContext";
+import { Separator } from "@/components/ui/separator";
 
 function ChatListSideBar() {
   return (
@@ -40,53 +48,107 @@ function ChatListHeader() {
 }
 
 function ChatList() {
-  const { filteredChats, selectedChat, handleChatSelect } = useChatContext();
+  const {
+    filteredFriendChats,
+    filteredNonFriendChats,
+    selectedChat,
+    handleChatSelect,
+  } = useChatContext();
 
   return (
     <ScrollArea className="flex-1">
-      <div className="divide-y">
-        {filteredChats.map((chat) => (
-          <button
-            key={chat.id}
-            onClick={() => handleChatSelect(chat)}
-            className={`w-full p-4 flex items-center gap-3 hover:bg-accent transition-colors ${
-              selectedChat?.id === chat.id ? "bg-accent" : ""
-            }`}
-          >
-            <div className="relative">
-              <Avatar className="h-14 w-14">
-                <AvatarImage src={chat.avatar} alt={chat.name} />
-                <AvatarFallback className="text-lg">
-                  {chat.name
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              {chat.online && (
-                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-background rounded-full" />
-              )}
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold truncate">{chat.name}</span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
-                  {chat.timestamp}
-                </span>
+      <div className="p-3">
+        {/* Friends Section */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-muted-foreground uppercase">
+            <Users className="h-4 w-4" />
+            <span>Friends ({filteredFriendChats.length})</span>
+          </div>
+          <div className="divide-y">
+            {filteredFriendChats.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No friends yet. Add friends below!
               </div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground truncate">
-                  {chat.lastMessage}
-                </p>
-                {chat.unread > 0 && (
-                  <span className="ml-2 bg-primary text-primary-foreground text-xs font-semibold rounded-full h-5 w-5 flex items-center justify-center">
-                    {chat.unread}
-                  </span>
-                )}
+            ) : (
+              filteredFriendChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => handleChatSelect(chat)}
+                  className={`w-full p-4 flex items-center gap-3 hover:bg-accent transition-colors rounded-lg ${
+                    selectedChat?.id === chat.id ? "bg-accent" : ""
+                  }`}
+                >
+                  <div className="relative">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={chat.avatar} alt={chat.name} />
+                      <AvatarFallback className="text-base">
+                        {chat.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {chat.online && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
+                    )}
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <span className="font-semibold truncate block">
+                      {chat.name}
+                    </span>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {chat.email}
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        <Separator className="my-4" />
+
+        {/* Non-Friends Section */}
+        <div>
+          <div className="flex items-center gap-2 px-2 py-2 text-xs font-semibold text-muted-foreground uppercase">
+            <UserPlus className="h-4 w-4" />
+            <span>Other Users ({filteredNonFriendChats.length})</span>
+          </div>
+          <div className="divide-y">
+            {filteredNonFriendChats.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No other users found
               </div>
-            </div>
-          </button>
-        ))}
+            ) : (
+              filteredNonFriendChats.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => handleChatSelect(chat)}
+                  className={`w-full p-4 flex items-center gap-3 hover:bg-accent transition-colors rounded-lg ${
+                    selectedChat?.id === chat.id ? "bg-accent" : ""
+                  }`}
+                >
+                  <div className="relative">
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={chat.avatar} alt={chat.name} />
+                      <AvatarFallback className="text-base">
+                        {chat.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <span className="font-semibold truncate block">
+                      {chat.name}
+                    </span>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {chat.email}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" className="ml-auto">
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </ScrollArea>
   );
@@ -105,6 +167,8 @@ function ChatArea() {
 function ChatAreaHeader() {
   const { selectedChat } = useChatContext();
 
+  if (!selectedChat) return null;
+
   return (
     <div className="p-4 border-b flex items-center justify-between bg-background">
       <div className="flex items-center gap-3">
@@ -112,10 +176,7 @@ function ChatAreaHeader() {
           <Avatar className="h-10 w-10">
             <AvatarImage src={selectedChat.avatar} alt={selectedChat.name} />
             <AvatarFallback>
-              {selectedChat.name
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")}
+              {selectedChat.name.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           {selectedChat.online && (
@@ -136,6 +197,8 @@ function ChatAreaHeader() {
 function ChatMessagesArea() {
   const { messages, isLoadingMessages, selectedChat, messagesAreaRef } =
     useChatContext();
+
+  if (!selectedChat) return null;
 
   return (
     <div ref={messagesAreaRef} className="flex-1 relative overflow-hidden">
@@ -171,10 +234,7 @@ function ChatMessagesArea() {
                         alt={selectedChat.name}
                       />
                       <AvatarFallback className="text-xs">
-                        {selectedChat.name
-                          .split(" ")
-                          .map((n: string) => n[0])
-                          .join("")}
+                        {selectedChat.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                   )}
@@ -243,23 +303,23 @@ function ChatsContent() {
     );
   }
 
-  if (!selectedChat) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <p className="text-muted-foreground">No chats available</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-background border-t">
       <ChatListSideBar />
-      <ChatArea />
+      {!selectedChat ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">
+            Select a chat to start messaging
+          </p>
+        </div>
+      ) : (
+        <ChatArea />
+      )}
     </div>
   );
 }
 
-export default function Chats() {
+export default function Connections() {
   return (
     <ChatProvider>
       <ChatsContent />

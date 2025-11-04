@@ -25,7 +25,7 @@ async def on_startup():
     await create_db_and_tables()
 
 
-@app.get("/")
+@app.get("/api/friendships/health")
 def root():
     return {"message": "Friendship Service is online"}
 

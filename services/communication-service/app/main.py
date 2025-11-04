@@ -22,18 +22,18 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@app.websocket("/ws/chat")
+@app.websocket("/api/ws/chat")
 async def websocket_endpoint(websocket: WebSocket):
     #Canal de chat en tiempo real
     await manager.connect(websocket)
     try:
         while True:
             data = await websocket.receive_text()
-            await manager.broadcast(f"📢 Nuevo mensaje: {data}")
+            await manager.broadcast(f"Nuevo mensaje: {data}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 
-@app.get("/")
+@app.get("/api/ws/health")
 def root():
-    return {"message": "Communication Service is online ✅"}
+    return {"message": "Communication Service is online"}

@@ -5,8 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Zod schema for form validation
-// Note: Install zod with: npm install zod
 // import { z } from "zod";
 // const documentSchema = z.object({
 //   title: z.string().min(1, "Title is required").max(100, "Title is too long"),
@@ -140,7 +138,8 @@ export default function UploadDocument() {
         uploadData.append("file", formData.file);
       }
 
-      // TODO: Replace with your actual API endpoint
+      // FIXME: use axios or similar with proper base URL configuration and
+      // error handling as well as types
       const response = await fetch("http://localhost/content/upload", {
         method: "POST",
         body: uploadData,

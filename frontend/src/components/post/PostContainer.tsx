@@ -14,7 +14,7 @@ interface User {
   avatar: string;
 }
 
-interface Post {
+export interface Post {
   id: number;
   user: User;
   date: Date;
@@ -24,11 +24,7 @@ interface Post {
   image?: string;
 }
 
-interface PostContainerProps {
-  post: Post;
-}
-
-export function PostContainer({ post }: PostContainerProps) {
+export function PostContainer({ post }: { post: Post }) {
   const formattedDate = new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",

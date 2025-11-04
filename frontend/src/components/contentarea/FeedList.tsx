@@ -1,47 +1,82 @@
-import { PostContainer } from "../post/PostContainer";
+import { PostContainer, type Post } from "../post/PostContainer";
+import { useEffect, useState } from "react";
+import { Card, CardContent } from "../ui/card";
 
-export function Feed() {
-  // Mock data for posts
-  const posts = [
-    {
-      id: 1,
-      user: {
-        name: "Emma Wilson",
-        avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-      },
-      date: new Date("2023-09-15T14:32:00"),
-      content:
-        "Just submitted my research paper on renewable energy sources. Would love to get some feedback from anyone interested in sustainability!",
-      commentCount: 8,
-      likes: 24,
-    },
-    {
-      id: 2,
-      user: {
-        name: "Michael Chen",
-        avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-      },
-      date: new Date("2023-09-14T09:15:00"),
-      content:
-        "Here are my notes from today's calculus lecture. Hope they help! #math #calculus",
-      commentCount: 12,
-      likes: 45,
-      image:
-        "https://images.unsplash.com/photo-1621600411688-4be93c2c1208?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=880&q=80",
-    },
-    {
-      id: 3,
-      user: {
-        name: "Sophia Rodriguez",
-        avatar: "https://randomuser.me/api/portraits/women/68.jpg",
-      },
-      date: new Date("2023-09-13T16:45:00"),
-      content:
-        "Our team won the coding competition! So proud of everyone's hard work and dedication. Looking forward to the next challenge!",
-      commentCount: 32,
-      likes: 87,
-    },
-  ];
+function EmptyFeedState() {
+  return (
+    <Card className="border-dashed border-2 bg-muted/30">
+      <CardContent className="flex flex-col items-center justify-center py-16 px-6">
+        <div className="rounded-full bg-primary/10 p-6 mb-6">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-12 w-12 text-primary"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold text-foreground mb-2">
+          No posts yet
+        </h3>
+        <p className="text-muted-foreground text-center max-w-sm mb-6">
+          There are no posts to display at the moment. Be the first to share
+          something with the community!
+        </p>
+        <div className="flex gap-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 mr-1"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            Check back later for updates
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Feed() {
+  const [posts, setPosts] = useState<Post[]>([]);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        // FIXME: use axios or similar with proper base URL configuration and
+        // error handling as well as types
+        const response = await fetch("http://localhost/content/posts");
+        if (!response.ok) {
+          throw new Error("Failed to fetch posts");
+        }
+        const data = await response.json();
+        setPosts(data);
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+      }
+    };
+    fetchPosts();
+  }, []);
+
+  if (!posts || posts.length === 0) {
+    return <EmptyFeedState />;
+  }
 
   return (
     <div className="space-y-4">
@@ -52,5 +87,4 @@ export function Feed() {
   );
 }
 
-// Export as PostList for backward compatibility
-export { Feed as PostList };
+export default Feed;

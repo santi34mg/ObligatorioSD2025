@@ -1,4 +1,4 @@
-import { Feed } from "@/components/contentarea/FeedList";
+import Feed from "@/components/contentarea/FeedList";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 export function ContentArea() {

@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ContentArea } from "./components/contentarea/ContentArea";
 import { useState } from "react";
 import { Layout } from "./components/Layout";
 import { AuthProvider } from "./contexts/AuthContext";
 import WIP from "./pages/WIP";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import UploadDocument from "./pages/UploadDocument";
+import Materials from "./pages/Materials";
 
 export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -25,10 +26,11 @@ export default function App() {
             element={
               <Layout layoutProps={layoutProps}>
                 <Routes>
-                  <Route path="/" element={<ContentArea />} />
+                  <Route path="/" element={<Materials />} />
                   <Route path="/courses" element={<WIP />} />
                   <Route path="/profile" element={<WIP />} />
                   <Route path="/settings" element={<WIP />} />
+                  <Route path="/upload/document" element={<UploadDocument />} />
                 </Routes>
               </Layout>
             }

@@ -1,23 +1,35 @@
-from fastapi import APIRouter, UploadFile, File, Form
+from fastapi import UploadFile, File, Form
 from app.storage import upload_to_minio
 from app.db import insert_metadata
 
-router = APIRouter()
+from fastapi import FastAPI
 
-@router.post("/upload")
+app = FastAPI(title="Content Service")
+
+@app.post("/content/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    uploader: str = Form(...)
+    title: str = Form(...),
+    description: str = Form(...),
+    uploader: str = Form(default="anonymous")
 ):
-    #Recibe un archivo y lo guarda en MinIO.
-    #También registra la información en la base de datos
+    """
+    Recibe un archivo y lo guarda en MinIO.
+    También registra la información en la base de datos con título y descripción.
+    """
     
     file_url = await upload_to_minio(file)
     metadata = {
         "filename": file.filename,
+        "title": title,
+        "description": description,
         "uploader": uploader,
         "url": file_url,
         "content_type": file.content_type
     }
     insert_metadata(metadata)
-    return {"message": "Archivo subido correctamente", "url": file_url}
+    return {
+        "message": "Documento subido exitosamente", 
+        "url": file_url,
+        "title": title
+    }

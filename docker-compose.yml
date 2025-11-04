@@ -83,8 +83,8 @@ services:
       - "5173:5173"
     labels:
       - "traefik.enable=true"
-      # Router para el frontend (HTTP only for local dev)
-      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      # Router para el frontend - exclude API paths
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/auth`) && !PathPrefix(`/users`) && !PathPrefix(`/content`) && !PathPrefix(`/collab`) && !PathPrefix(`/ws`) && !PathPrefix(`/communication`) && !PathPrefix(`/moderation`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=1"
@@ -125,6 +125,38 @@ services:
     ports:
       - "8002:8000"
 
+  content-service:
+    build:
+      context: .
+      dockerfile: services/content-service/Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    depends_on:
+      db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.content.rule=PathPrefix(`/content`)"
+      - "traefik.http.routers.content.entrypoints=web"
+      - "traefik.http.routers.content.priority=100"
+      - "traefik.http.routers.content.middlewares=cors"
+      - "traefik.http.services.content.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.content.middlewares=content-cors"
+    networks:
+      - traefik
+
   moderation-service:
     build:
       context: .
@@ -136,6 +168,7 @@ services:
       # Router para Moderation Service (HTTP y HTTPS)
       - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
       - "traefik.http.routers.moderation.entrypoints=web,websecure"
+      - "traefik.http.routers.moderation.priority=100"
       - "traefik.http.routers.moderation.service=moderation"
       - "traefik.http.services.moderation.loadbalancer.server.port=8001"
     depends_on:
@@ -143,56 +176,6 @@ services:
     networks:
       - traefik
     restart: unless-stopped
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    networks:
-      - traefik
-
-  content-service:
-    build: ./services/content-service
-    ports:
-      - "8001:8000"
-    environment:
-      - MONGO_URL=mongodb://mongo:27017
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
-    depends_on:
-      - mongo
-      - minio
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.content.rule=PathPrefix(`/content`)"
-      - "traefik.http.routers.content.entrypoints=web"
-      - "traefik.http.routers.content.middlewares=cors"
-      - "traefik.http.services.content.loadbalancer.server.port=8000"
-    networks:
-      - traefik
-
-  mongo:
-    image: mongo
-    ports:
-      - "27017:27017"
-    networks:
-      - traefik
-
-  minio:
-    image: minio/minio
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data
-    ports:
-      - "9000:9000"
-    networks:
-      - traefik
 
   collaboration-service:
     build:
@@ -207,25 +190,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.collab.rule=PathPrefix(`/collab`)"
       - "traefik.http.routers.collab.entrypoints=web"
+      - "traefik.http.routers.collab.priority=100"
       - "traefik.http.routers.collab.middlewares=cors"
       - "traefik.http.services.collab.loadbalancer.server.port=8000"
     ports:
       - "8003:8000" # acceso directo opcional
-    networks:
-      - traefik
-
-  moderation-service:
-    build:
-      context: ./services/moderation-service
-      dockerfile: Dockerfile
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.moderation.rule=PathPrefix(`/moderation`)"
-      - "traefik.http.routers.moderation.entrypoints=web"
-      - "traefik.http.routers.moderation.middlewares=cors"
-      - "traefik.http.services.moderation.loadbalancer.server.port=8000"
-    ports:
-      - "8004:8000"
     networks:
       - traefik
 
@@ -237,6 +206,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.websocket.rule=PathPrefix(`/ws`)"
       - "traefik.http.routers.websocket.entrypoints=web"
+      - "traefik.http.routers.websocket.priority=100"
       - "traefik.http.services.websocket.loadbalancer.server.port=8000"
       # Configuración específica para WebSockets
       - "traefik.http.routers.websocket.middlewares=websocket-headers,cors"
@@ -262,8 +232,38 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.communication.rule=PathPrefix(`/communication`)"
       - "traefik.http.routers.communication.entrypoints=web"
+      - "traefik.http.routers.communication.priority=100"
       - "traefik.http.routers.communication.middlewares=cors"
       - "traefik.http.services.communication.loadbalancer.server.port=8000"
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - traefik
+
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - traefik
+
+  minio:
+    image: minio/minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data
+    ports:
+      - "9000:9000"
+    networks:
+      - traefik
 
 volumes:
   db_data:

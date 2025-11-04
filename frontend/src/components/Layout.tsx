@@ -1,5 +1,6 @@
 import Header from "./header/Header";
 import { ChatSidebar } from "./chat/ChatSidebar";
+import { FloatingActionButton } from "./FloatingActionButton";
 
 interface LayoutProps {
   isChatOpen: boolean;
@@ -26,6 +27,7 @@ export function Layout({
         </div>
         <ChatSidebar isOpen={layoutProps.isChatOpen} />
       </div>
+      <FloatingActionButton />
     </div>
   );
 }

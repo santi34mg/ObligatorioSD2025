@@ -10,17 +10,16 @@ http:
           - rate-limit
           - security-headers
           - compress
-    
+
     # Content Service Middlewares
     content-service-middleware:
       chain:
         middlewares:
           - cors
-          - rate-limit-user  # Usuarios autenticados tienen límites más altos
+          - rate-limit-user # Usuarios autenticados tienen límites más altos
           - security-headers
           - compress
-          - circuit-breaker
-    
+
     # Communication Service Middlewares
     communication-service-middleware:
       chain:
@@ -30,7 +29,7 @@ http:
           - security-headers
           - compress
           - retry
-    
+
     # Collaboration Service Middlewares
     collaboration-service-middleware:
       chain:
@@ -39,7 +38,7 @@ http:
           - rate-limit
           - security-headers
           - compress
-    
+
     # Moderation Service Middlewares
     moderation-service-middleware:
       chain:
@@ -49,7 +48,7 @@ http:
           - security-headers
           - compress
           - circuit-breaker
-    
+
     # WebSocket Middlewares
     websocket-middleware:
       chain:
@@ -57,7 +56,7 @@ http:
           - cors
           - security-headers
           - compress
-    
+
     # API Gateway Middlewares
     api-gateway-middleware:
       chain:

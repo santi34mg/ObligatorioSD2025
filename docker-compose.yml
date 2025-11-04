@@ -84,7 +84,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para el frontend - exclude API paths
-      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/auth`) && !PathPrefix(`/users`) && !PathPrefix(`/content`) && !PathPrefix(`/collab`) && !PathPrefix(`/ws`) && !PathPrefix(`/communication`) && !PathPrefix(`/moderation`)"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/auth`) && !PathPrefix(`/users`) && !PathPrefix(`/content`) && !PathPrefix(`/collab`) && !PathPrefix(`/ws`) && !PathPrefix(`/communication`) && !PathPrefix(`/moderation`) && !PathPrefix(`/friendships`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=1"
@@ -124,6 +124,35 @@ services:
       - traefik
     ports:
       - "8002:8000"
+
+  friendship-service:
+    build:
+      context: .
+      dockerfile: services/friendship-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
+    labels:
+      - "traefik.enable=true"
+      # Router para Friendship API
+      - "traefik.http.routers.friendship.rule=PathPrefix(`/friendships`)"
+      - "traefik.http.routers.friendship.entrypoints=web"
+      - "traefik.http.routers.friendship.service=friendship"
+      - "traefik.http.routers.friendship.priority=100"
+      - "traefik.http.services.friendship.loadbalancer.server.port=8001"
+      # CORS headers
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.friendship.middlewares=friendship-cors"
+    depends_on:
+      db:
+        condition: service_started
+    networks:
+      - traefik
+    ports:
+      - "8007:8001"
 
   content-service:
     build:

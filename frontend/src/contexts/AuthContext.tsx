@@ -37,29 +37,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async (token: string) => {
     try {
+      // fastapi-users provides /users/me endpoint through get_users_router
       const response = await fetch("http://localhost/users/me", {
+        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData);
+        setUser({
+          id: userData.id,
+          email: userData.email,
+        });
       } else {
+        console.error("Failed to fetch user, status:", response.status);
         localStorage.removeItem("access_token");
+        setUser(null);
       }
     } catch (error) {
       console.error("Failed to fetch user:", error);
       localStorage.removeItem("access_token");
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = async (token: string) => {
-    localStorage.setItem("access_token", token);
-    await fetchUser(token);
+    try {
+      localStorage.setItem("access_token", token);
+      await fetchUser(token);
+    } catch (error) {
+      console.error("Login error:", error);
+      localStorage.removeItem("access_token");
+      setUser(null);
+      throw error; // Re-throw so calling code can handle it
+    }
   };
 
   const logout = () => {

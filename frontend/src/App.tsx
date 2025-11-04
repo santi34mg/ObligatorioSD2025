@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Layout } from "./components/Layout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Toaster } from "./components/ui/sonner";
 import WIP from "./pages/WIP";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -42,6 +43,7 @@ export default function App() {
             }
           />
         </Routes>
+        <Toaster />
       </BrowserRouter>
     </AuthProvider>
   );

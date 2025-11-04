@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +38,7 @@ export default function UploadDocument() {
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -154,18 +157,21 @@ export default function UploadDocument() {
         throw new Error("Upload failed");
       }
 
-      // Success - reset form
+      toast.success("Document uploaded successfully!", {});
+
+      // Reset form
       setFormData({ title: "", description: "", file: null });
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      alert("Document uploaded successfully!");
 
-      // TODO: Navigate to document list or show success message
-      // navigate('/documents');
+      navigate("/");
     } catch (error) {
       console.error("Upload error:", error);
       setErrors({ file: "Failed to upload document. Please try again." });
+      toast.error("Upload failed", {
+        description: "Failed to upload document. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }

@@ -34,9 +34,11 @@ export default function Login() {
     setError("");
 
     try {
+      console.log("Attempting login for:", email);
+
       // FIXME: use axios or similar with proper base URL configuration and
       // error handling as well as types
-      const response = await fetch("http://localhost/auth/jwt/login", {
+      const response = await fetch("http://localhost/api/auth/jwt/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -47,11 +49,16 @@ export default function Login() {
         }),
       });
 
+      console.log("Login response status:", response.status);
+
       if (!response.ok) {
-        throw new Error("Invalid credentials");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Login failed:", errorData);
+        throw new Error(errorData.detail || "Invalid credentials");
       }
 
       const data = await response.json();
+      console.log("Login successful, received token");
 
       // Store the JWT token using the auth context
       await login(data.access_token);
@@ -59,6 +66,7 @@ export default function Login() {
       // Redirect to home
       navigate("/");
     } catch (err) {
+      console.error("Login error:", err);
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setIsLoading(false);

@@ -5,10 +5,12 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
+import { type UserRole } from "@/lib/roles";
 
 interface User {
   id: string;
   email: string;
+  role: UserRole;
 }
 
 interface AuthContextType {
@@ -17,6 +19,8 @@ interface AuthContextType {
   login: (token: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  isAdmin: () => boolean;
+  isStudent: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,8 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async (token: string) => {
     try {
+      console.log("Fetching user with token:", token.substring(0, 20) + "...");
+
       // fastapi-users provides /users/me endpoint through get_users_router
-      const response = await fetch("http://localhost/users/me", {
+      const response = await fetch("http://localhost/api/users/me", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -46,14 +52,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
+      console.log("Fetch user response status:", response.status);
+
       if (response.ok) {
         const userData = await response.json();
+        console.log("User data received:", userData);
         setUser({
           id: userData.id,
           email: userData.email,
+          role: userData.role || "student", // Default to student if role is missing
         });
       } else {
+        const errorText = await response.text();
         console.error("Failed to fetch user, status:", response.status);
+        console.error("Error response:", errorText);
         localStorage.removeItem("access_token");
         setUser(null);
       }
@@ -68,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (token: string) => {
     try {
+      console.log("Login called with token:", token.substring(0, 20) + "...");
       localStorage.setItem("access_token", token);
       await fetchUser(token);
     } catch (error) {
@@ -83,6 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const isAdmin = () => {
+    return user?.role === "admin";
+  };
+
+  const isStudent = () => {
+    return user?.role === "student";
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -91,6 +112,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         isLoading,
+        isAdmin,
+        isStudent,
       }}
     >
       {children}

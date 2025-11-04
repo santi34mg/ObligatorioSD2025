@@ -7,9 +7,11 @@ import {
 
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { ProfileMenu } from "./ProfileMenu";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Header() {
   const isMobile = useIsMobile().isMobile;
+  const { isAdmin } = useAuth();
 
   return (
     <div className="flex bg-background/80 backdrop-blur-sm border-b border-border px-4 py-2 items-center">
@@ -26,6 +28,20 @@ export default function Header() {
               Connections
             </NavigationMenuLink>
           </NavigationMenuItem>
+          {isAdmin() && (
+            <>
+              <NavigationMenuItem>
+                <NavigationMenuLink href="/admin">
+                  Admin Panel
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink href="/admin/users">
+                  User Management
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            </>
+          )}
         </NavigationMenuList>
       </NavigationMenu>
       <div className="m-2">

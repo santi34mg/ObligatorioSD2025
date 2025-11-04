@@ -42,16 +42,19 @@ export default function Register() {
 
     try {
       // Register the user
-      const registerResponse = await fetch("http://localhost/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
+      const registerResponse = await fetch(
+        "http://localhost/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      );
 
       if (!registerResponse.ok) {
         const data = await registerResponse.json();
@@ -59,7 +62,7 @@ export default function Register() {
       }
 
       // Automatically log in after successful registration
-      const loginResponse = await fetch("http://localhost/auth/jwt/login", {
+      const loginResponse = await fetch("http://localhost/api/auth/jwt/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

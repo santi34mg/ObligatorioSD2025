@@ -1,5 +1,5 @@
 import uuid
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
@@ -9,6 +9,7 @@ class UserPublicInfo(BaseModel):
     email: str
     is_active: bool
     is_verified: bool
+    role: Literal["student", "admin"] = "student"
 
     class Config:
         from_attributes = True

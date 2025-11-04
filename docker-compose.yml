@@ -84,7 +84,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para el frontend - exclude API paths
-      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api`)"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api/**`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=1"
@@ -101,10 +101,11 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
     labels:
       - "traefik.enable=true"
       # Router para API REST (HTTP y HTTPS)
-      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/users`)"
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/users`) || PathPrefix(`/api/auth/jwt`)"
       - "traefik.http.routers.auth.entrypoints=web"
       - "traefik.http.routers.auth.service=auth"
       - "traefik.http.routers.auth.priority=100"
@@ -167,7 +168,7 @@ services:
       - "traefik.http.routers.users-service.rule=PathPrefix(`/api/users`)"
       - "traefik.http.routers.users-service.entrypoints=web"
       - "traefik.http.routers.users-service.service=users-service"
-      - "traefik.http.routers.users-service.priority=100"
+      - "traefik.http.routers.users-service.priority=50"
       - "traefik.http.services.users-service.loadbalancer.server.port=8003"
       # CORS headers
       - "traefik.http.middlewares.users-service-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
@@ -296,6 +297,8 @@ services:
 
   db:
     image: postgres:16-alpine
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}

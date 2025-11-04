@@ -26,7 +26,7 @@ export default function App() {
                   <Layout>
                     <Routes>
                       <Route path="/" element={<Materials />} />
-                      <Route path="/chats" element={<Chats />} />
+                      <Route path="/connections" element={<Chats />} />
                       <Route
                         path="/upload/document"
                         element={<UploadDocument />}

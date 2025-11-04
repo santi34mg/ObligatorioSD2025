@@ -11,14 +11,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex flex-col w-full h-screen bg-background">
+    <div className="flex flex-col overflow-hidden w-full h-screen bg-background">
       <Header />
       <SidebarProvider
         open={isChatSidebarOpen}
         onOpenChange={setIsChatSidebarOpen}
       >
         <div className="flex flex-1 overflow-hidden relative">
-          <main className="flex-1 overflow-auto relative">{children}</main>
+          <main className="flex-1 relative">{children}</main>
           <ChatSidebar toggleChatSidebar={toggleChatSidebar} />
         </div>
       </SidebarProvider>

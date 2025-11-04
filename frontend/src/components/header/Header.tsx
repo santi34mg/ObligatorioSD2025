@@ -22,7 +22,9 @@ export default function Header() {
             <NavigationMenuLink href="/courses">Courses</NavigationMenuLink>
           </NavigationMenuItem>
           <NavigationMenuItem>
-            <NavigationMenuLink href="/chats">Chats</NavigationMenuLink>
+            <NavigationMenuLink href="/connections">
+              Connections
+            </NavigationMenuLink>
           </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>

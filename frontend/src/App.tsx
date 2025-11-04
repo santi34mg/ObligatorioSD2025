@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useState } from "react";
 import { Layout } from "./components/Layout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -11,12 +10,6 @@ import UploadDocument from "./pages/UploadDocument";
 import Materials from "./pages/Materials";
 
 export default function App() {
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const toggleChat = () => {
-    setIsChatOpen(!isChatOpen);
-  };
-  const layoutProps = { isChatOpen, toggleChat };
-
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -27,16 +20,15 @@ export default function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <Layout layoutProps={layoutProps}>
+                <Layout>
                   <Routes>
                     <Route path="/" element={<Materials />} />
-                    <Route path="/courses" element={<WIP />} />
-                    <Route path="/profile" element={<WIP />} />
-                    <Route path="/settings" element={<WIP />} />
                     <Route
                       path="/upload/document"
                       element={<UploadDocument />}
                     />
+                    {/* Rest of the routes are WIP */}
+                    <Route path="/*" element={<WIP />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>

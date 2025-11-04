@@ -1,33 +1,35 @@
+import { useState } from "react";
 import Header from "./header/Header";
-import { ChatSidebar } from "./chat/ChatSidebar";
 import { FloatingActionButton } from "./FloatingActionButton";
+import { FloatingChatButton } from "./FloatingChatButton";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import ChatSidebar from "./chat/ChatSidebar";
 
-interface LayoutProps {
-  isChatOpen: boolean;
-  toggleChat: () => void;
-}
+export function Layout({ children }: { children: React.ReactNode }) {
+  const [isChatSidebarOpen, setIsChatSidebarOpen] = useState(false);
 
-export function Layout({
-  layoutProps,
-  children,
-}: {
-  layoutProps: LayoutProps;
-  children: React.ReactNode;
-}) {
+  const toggleChatSidebar = () => {
+    setIsChatSidebarOpen(!isChatSidebarOpen);
+  };
+
   return (
-    <div className="flex flex-col w-full h-full bg-background">
+    <div className="flex flex-col w-full h-screen bg-background">
       <Header />
-      <div className="flex flex-1 overflow-hidden">
-        <div
-          className={`flex-1 transition-all duration-300 ease-in-out ${
-            layoutProps.isChatOpen ? "mr-80" : "mr-0"
-          }`}
-        >
-          {children}
+      <SidebarProvider
+        open={isChatSidebarOpen}
+        onOpenChange={setIsChatSidebarOpen}
+      >
+        <div className="flex flex-1 overflow-hidden relative">
+          <main className="flex-1 overflow-auto">{children}</main>
+          <ChatSidebar toggleChatSidebar={toggleChatSidebar} />
         </div>
-        <ChatSidebar isOpen={layoutProps.isChatOpen} />
-      </div>
+      </SidebarProvider>
+
       <FloatingActionButton />
+      <FloatingChatButton
+        onClick={toggleChatSidebar}
+        isOpen={isChatSidebarOpen}
+      />
     </div>
   );
 }

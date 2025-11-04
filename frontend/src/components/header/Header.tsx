@@ -21,6 +21,9 @@ export default function Header() {
           <NavigationMenuItem>
             <NavigationMenuLink href="/courses">Courses</NavigationMenuLink>
           </NavigationMenuItem>
+          <NavigationMenuItem>
+            <NavigationMenuLink href="/chats">Chats</NavigationMenuLink>
+          </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>
       <div className="m-2">

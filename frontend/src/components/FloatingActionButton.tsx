@@ -21,30 +21,26 @@ export function FloatingActionButton() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="lg"
-            className="h-14 w-14 rounded-full shadow-xl/20 hover:shadow-xl/30 transition-shadow bg-white hover:bg-gray-50"
-          >
-            <Plus className="h-10 w-10 text-black" strokeWidth={3} />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onClick={handleDocument} className="cursor-pointer">
-            <FileText className="mr-2 h-4 w-4" />
-            <span>Document</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleDiscussion}
-            className="cursor-pointer"
-          >
-            <MessageSquare className="mr-2 h-4 w-4" />
-            <span>Discussion</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="lg"
+          className="rounded-full shadow-md hover:shadow-lg transition-shadow bg-primary hover:bg-primary/90"
+        >
+          <Plus className="h-5 w-5 mr-2" strokeWidth={2.5} />
+          <span className="font-medium">Create</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-48">
+        <DropdownMenuItem onClick={handleDocument} className="cursor-pointer">
+          <FileText className="mr-2 h-4 w-4" />
+          <span>Document</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleDiscussion} className="cursor-pointer">
+          <MessageSquare className="mr-2 h-4 w-4" />
+          <span>Discussion</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

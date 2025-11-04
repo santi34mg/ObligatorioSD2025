@@ -1,6 +1,7 @@
 import { PostContainer, type Post } from "../post/PostContainer";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "../ui/card";
+import { FloatingActionButton } from "../FloatingActionButton";
 
 function EmptyFeedState() {
   return (
@@ -75,11 +76,21 @@ function Feed() {
   }, []);
 
   if (!posts || posts.length === 0) {
-    return <EmptyFeedState />;
+    return (
+      <>
+        <div className="mb-6">
+          <FloatingActionButton />
+        </div>
+        <EmptyFeedState />
+      </>
+    );
   }
 
   return (
     <div className="space-y-4">
+      <div className="mb-6">
+        <FloatingActionButton />
+      </div>
       {posts.map((post) => (
         <PostContainer key={post.id} post={post} />
       ))}

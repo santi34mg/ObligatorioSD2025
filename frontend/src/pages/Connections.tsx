@@ -297,14 +297,14 @@ function ChatsContent() {
 
   if (isLoadingChats) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-background border-t">
+    <div className="flex h-full bg-background border-t">
       <ChatListSideBar />
       {!selectedChat ? (
         <div className="flex-1 flex items-center justify-center">
@@ -321,8 +321,10 @@ function ChatsContent() {
 
 export default function Connections() {
   return (
-    <ChatProvider>
-      <ChatsContent />
-    </ChatProvider>
+    <div className="h-full overflow-hidden">
+      <ChatProvider>
+        <ChatsContent />
+      </ChatProvider>
+    </div>
   );
 }

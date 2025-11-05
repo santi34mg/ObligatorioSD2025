@@ -2,7 +2,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Users, FileText, BarChart3, Settings } from "lucide-react";
+import { Users, FileText, BarChart3, Settings, Activity } from "lucide-react";
 
 export default function AdminPanel() {
   const { user } = useAuth();
@@ -50,6 +50,27 @@ export default function AdminPanel() {
             </p>
             <Button className="w-full" variant="outline" disabled>
               Coming Soon
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Services Health Card */}
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Activity className="mr-2 h-5 w-5" />
+              Services Health
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">
+              Monitor microservices and test authorization
+            </p>
+            <Button
+              onClick={() => navigate("/admin/services-health")}
+              className="w-full"
+            >
+              Check Services
             </Button>
           </CardContent>
         </Card>

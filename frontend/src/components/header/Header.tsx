@@ -35,11 +35,6 @@ export default function Header() {
                   Admin Panel
                 </NavigationMenuLink>
               </NavigationMenuItem>
-              <NavigationMenuItem>
-                <NavigationMenuLink href="/admin/users">
-                  User Management
-                </NavigationMenuLink>
-              </NavigationMenuItem>
             </>
           )}
         </NavigationMenuList>

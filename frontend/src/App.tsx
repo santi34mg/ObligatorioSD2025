@@ -13,6 +13,7 @@ import Materials from "./pages/Materials";
 import Connections from "./pages/Connections";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserManagement from "./pages/admin/UserManagement";
+import ServicesHealth from "./pages/admin/ServicesHealth";
 
 export default function App() {
   return (
@@ -48,6 +49,14 @@ export default function App() {
                         element={
                           <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                             <UserManagement />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/services-health"
+                        element={
+                          <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                            <ServicesHealth />
                           </ProtectedRoute>
                         }
                       />

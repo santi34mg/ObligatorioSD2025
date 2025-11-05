@@ -7,15 +7,20 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 from app.db import get_async_session
 from app.models import User
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Must match auth-service SECRET
 SECRET = os.getenv("JWT_SECRET", "SECRET")
 ALGORITHM = "HS256"
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=True)
 
 
 async def get_current_user(
@@ -27,6 +32,7 @@ async def get_current_user(
     This validates tokens created by auth-service.
     """
     token = credentials.credentials
+    logger.info(f"Received token: {token[:20]}...")
     
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -35,7 +41,13 @@ async def get_current_user(
     )
     
     try:
-        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+        # fastapi-users includes audience in JWT, so we need to decode with options to ignore it
+        payload = jwt.decode(
+            token, 
+            SECRET, 
+            algorithms=[ALGORITHM],
+            options={"verify_aud": False}  # Disable audience verification
+        )
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -49,8 +61,10 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     
     if user is None:
+        logger.error(f"User not found in database: {user_uuid}")
         raise credentials_exception
     
+    logger.info(f"User authenticated: {user.email}")
     return user
 
 

@@ -7,6 +7,10 @@ Usage: python make_admin.py <email>
 import sys
 import asyncio
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the services directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'services', 'auth-service'))

@@ -15,10 +15,17 @@ def ensure_bucket():
     if not client.bucket_exists(BUCKET):
         client.make_bucket(BUCKET)
 
-async def upload_to_minio(file):
+async def upload_to_minio(file, content: bytes = None):
+    """
+    Upload file to MinIO.
+    If content is provided, use it; otherwise read from file.
+    """
     ensure_bucket()
     filename = f"{uuid.uuid4()}_{file.filename}"
-    content = await file.read()
+    
+    if content is None:
+        content = await file.read()
+    
     client.put_object(
         BUCKET,
         filename,
@@ -26,4 +33,4 @@ async def upload_to_minio(file):
         len(content),
         content_type=file.content_type
     )
-    return f"http://localhost:9000/{BUCKET}/{filename}"
+    return f"http://localhost:9000/{BUCKET}/{filename}", len(content)

@@ -83,8 +83,8 @@ services:
       - "5173:5173"
     labels:
       - "traefik.enable=true"
-      # Router para el frontend - exclude API paths
-      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api/**`)"
+      # Router para el frontend - exclude API paths y content paths
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api/**`) && !PathPrefix(`/content/**`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=1"
@@ -192,9 +192,11 @@ services:
       - "8001:8000"
     environment:
       - MONGO_URL=mongodb://mongo:27017
+      - MONGO_DB=umshare
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
     depends_on:
       db:
         condition: service_started
@@ -202,17 +204,25 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.content.rule=PathPrefix(`/api/content`)"
+      # Router for /api/content paths
+      - "traefik.http.routers.content-api.rule=PathPrefix(`/api/content`)"
+      - "traefik.http.routers.content-api.entrypoints=web"
+      - "traefik.http.routers.content-api.priority=100"
+      - "traefik.http.routers.content-api.service=content"
+      - "traefik.http.routers.content-api.middlewares=content-cors"
+      # Router for /content paths (without /api) - for frontend compatibility
+      - "traefik.http.routers.content.rule=PathPrefix(`/content`)"
       - "traefik.http.routers.content.entrypoints=web"
       - "traefik.http.routers.content.priority=100"
-      - "traefik.http.routers.content.middlewares=cors"
+      - "traefik.http.routers.content.service=content"
+      - "traefik.http.routers.content.middlewares=content-cors"
+      # Service definition
       - "traefik.http.services.content.loadbalancer.server.port=8000"
       # CORS headers
       - "traefik.http.middlewares.content-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
       - "traefik.http.middlewares.content-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
       - "traefik.http.middlewares.content-cors.headers.accesscontrolallowheaders=*"
       - "traefik.http.middlewares.content-cors.headers.accesscontrolallowcredentials=true"
-      - "traefik.http.routers.content.middlewares=content-cors"
     networks:
       - traefik
 
@@ -250,8 +260,13 @@ services:
       - "traefik.http.routers.collab.rule=PathPrefix(`/api/collab`)"
       - "traefik.http.routers.collab.entrypoints=web"
       - "traefik.http.routers.collab.priority=100"
-      - "traefik.http.routers.collab.middlewares=cors"
+      - "traefik.http.routers.collab.middlewares=collab-cors"
       - "traefik.http.services.collab.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolallowcredentials=true"
     ports:
       - "8003:8000" # acceso directo opcional
     networks:
@@ -268,9 +283,14 @@ services:
       - "traefik.http.routers.websocket.priority=100"
       - "traefik.http.services.websocket.loadbalancer.server.port=8000"
       # Configuración específica para WebSockets
-      - "traefik.http.routers.websocket.middlewares=websocket-headers,cors"
+      - "traefik.http.routers.websocket.middlewares=websocket-headers,websocket-cors"
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Connection=Upgrade"
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Upgrade=websocket"
+      # CORS headers
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolallowcredentials=true"
     ports:
       - "8005:8000"
     networks:
@@ -292,13 +312,19 @@ services:
       - "traefik.http.routers.communication.rule=PathPrefix(`/api/communication`)"
       - "traefik.http.routers.communication.entrypoints=web"
       - "traefik.http.routers.communication.priority=100"
-      - "traefik.http.routers.communication.middlewares=cors"
+      - "traefik.http.routers.communication.middlewares=communication-cors"
       - "traefik.http.services.communication.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowcredentials=true"
 
   db:
     image: postgres:16-alpine
-    ports:
-      - "5432:5432"
+    # No exponer puerto externamente - los servicios Docker se comunican internamente
+    # ports:
+    #   - "5432:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}

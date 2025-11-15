@@ -99,7 +99,7 @@ services:
       context: .
       dockerfile: services/auth-service/Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
       - JWT_SECRET=${JWT_SECRET:-SECRET}
     labels:
@@ -131,7 +131,7 @@ services:
       context: .
       dockerfile: services/friendship-service/Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
       - JWT_SECRET=${JWT_SECRET:-SECRET}
     labels:
       - "traefik.enable=true"
@@ -160,7 +160,7 @@ services:
       context: .
       dockerfile: services/users-service/Dockerfile
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
       - JWT_SECRET=${JWT_SECRET:-SECRET}
     labels:
       - "traefik.enable=true"
@@ -198,10 +198,10 @@ services:
       - MINIO_ROOT_PASSWORD=minioadmin
       - JWT_SECRET=${JWT_SECRET:-SECRET}
     depends_on:
-      db:
+      mongo:
         condition: service_started
-      rabbitmq:
-        condition: service_healthy
+      minio:
+        condition: service_started
     labels:
       - "traefik.enable=true"
       # Router for /api/content paths
@@ -321,7 +321,7 @@ services:
       - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowcredentials=true"
 
   db:
-    image: postgres:16-alpine
+    image: postgres:16
     # No exponer puerto externamente - los servicios Docker se comunican internamente
     # ports:
     #   - "5432:5432"
@@ -331,27 +331,38 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./db-init/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - traefik
 
   mongo:
-    image: mongo
+    image: mongo:6.0
+    container_name: mongo
+    restart: always
     ports:
       - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
     networks:
       - traefik
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
+    container_name: minio
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data
+    command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
     networks:
       - traefik
 
 volumes:
   db_data:
   minio_data:
+  mongo_data:
+

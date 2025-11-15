@@ -2,8 +2,10 @@ import uuid
 from sqlalchemy import Column, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base
+from sqlalchemy import MetaData
 
-Base = declarative_base()
+metadata = MetaData(schema="auth")
+Base = declarative_base(metadata=metadata)
 
 
 class User(Base):

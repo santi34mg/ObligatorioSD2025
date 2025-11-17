@@ -141,15 +141,17 @@ export default function UploadDocument() {
         uploadData.append("file", formData.file);
       }
 
-      // FIXME: use axios or similar with proper base URL configuration and
-      // error handling as well as types
-      const response = await fetch("http://localhost/content/upload", {
+      // Get auth token if available
+      const token = localStorage.getItem("access_token");
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch("http://localhost/api/content/upload", {
         method: "POST",
         body: uploadData,
-        // Add authentication headers if needed
-        // headers: {
-        //   'Authorization': `Bearer ${token}`
-        // }
+        headers: headers,
       });
 
       if (!response.ok) {

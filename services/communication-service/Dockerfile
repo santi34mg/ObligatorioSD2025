@@ -1,17 +1,20 @@
-# Imagen base
+# Base image
 FROM python:3.12-slim
 
-# Directorio de trabajo
+# Working directory
 WORKDIR /app
 
-# Copiar dependencias e instalarlas
-COPY requirements.txt .
+# Copy dependencies and install them
+COPY services/communication-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código
-COPY app/ ./app/
+# Copy the code
+COPY services/communication-service/app/ ./app/
 
-# Exponer puerto
+# Copy shared libraries
+COPY shared/ ./shared/
+
+# Expose port
 EXPOSE 8000
 
 # Comando para ejecutar el servicio

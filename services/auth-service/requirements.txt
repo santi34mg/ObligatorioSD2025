@@ -4,3 +4,5 @@ uvicorn[standard]
 asyncpg
 aio-pika
 pydantic
+prometheus-client
+prometheus-fastapi-instrumentator

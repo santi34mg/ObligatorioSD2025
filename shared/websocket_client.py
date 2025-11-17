@@ -41,9 +41,9 @@ class WebSocketClient:
             logger.info(f"Microservicio {self.service_id} desconectado del WebSocket service")
     
     async def send_message_to_user(self, user_id: str, message_type: str, data: Dict[str, Any]):
-        """Enviar mensaje a un usuario específico"""
+        """Send message to a specific user"""
         if not self.connection:
-            logger.error("No hay conexión al WebSocket service")
+            logger.error("No connection to WebSocket service")
             return False
         
         message = {
@@ -63,9 +63,9 @@ class WebSocketClient:
             return False
     
     async def send_message_to_room(self, room_id: str, message_type: str, data: Dict[str, Any]):
-        """Enviar mensaje a una sala específica"""
+        """Send message to a specific room"""
         if not self.connection:
-            logger.error("No hay conexión al WebSocket service")
+            logger.error("No connection to WebSocket service")
             return False
         
         message = {
@@ -85,7 +85,7 @@ class WebSocketClient:
             return False
     
     async def send_notification(self, user_id: str, title: str, message: str, notification_type: str = "info"):
-        """Enviar notificación a un usuario"""
+        """Send notification to a user"""
         notification_data = {
             "title": title,
             "message": message,
@@ -96,7 +96,7 @@ class WebSocketClient:
         return await self.send_message_to_user(user_id, "notification", notification_data)
     
     async def send_collaboration_update(self, room_id: str, update_type: str, data: Dict[str, Any]):
-        """Enviar actualización de colaboración a una sala"""
+        """Send collaboration update to a room"""
         collaboration_data = {
             "update_type": update_type,
             "data": data,
@@ -106,7 +106,7 @@ class WebSocketClient:
         return await self.send_message_to_room(room_id, "collaboration_update", collaboration_data)
     
     async def send_content_update(self, user_id: str, content_id: str, update_type: str, data: Dict[str, Any]):
-        """Enviar actualización de contenido a un usuario"""
+        """Send content update to a user"""
         content_data = {
             "content_id": content_id,
             "update_type": update_type,
@@ -117,7 +117,7 @@ class WebSocketClient:
         return await self.send_message_to_user(user_id, "content_update", content_data)
     
     async def send_moderation_result(self, user_id: str, content_id: str, result: str, reason: str = None):
-        """Enviar resultado de moderación a un usuario"""
+        """Send moderation result to a user"""
         moderation_data = {
             "content_id": content_id,
             "result": result,  # "approved", "rejected", "pending"
@@ -128,7 +128,7 @@ class WebSocketClient:
         return await self.send_message_to_user(user_id, "moderation_result", moderation_data)
 
 class WebSocketServiceIntegration:
-    """Clase para integrar WebSocket en microservicios existentes"""
+    """Class to integrate WebSocket in existing microservices"""
     
     def __init__(self, service_name: str, websocket_service_url: str = "ws://websocket-service:8000"):
         self.service_name = service_name
@@ -136,17 +136,17 @@ class WebSocketServiceIntegration:
         self.is_connected = False
     
     async def start(self):
-        """Iniciar conexión al WebSocket service"""
+        """Start connection to WebSocket service"""
         self.is_connected = await self.websocket_client.connect(self.service_name)
         return self.is_connected
     
     async def stop(self):
-        """Detener conexión al WebSocket service"""
+        """Stop connection to WebSocket service"""
         await self.websocket_client.disconnect()
         self.is_connected = False
     
     async def notify_user(self, user_id: str, title: str, message: str, notification_type: str = "info"):
-        """Enviar notificación a usuario"""
+        """Send notification to user"""
         if self.is_connected:
             return await self.websocket_client.send_notification(user_id, title, message, notification_type)
         return False

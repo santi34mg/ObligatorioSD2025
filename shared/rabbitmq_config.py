@@ -1,10 +1,10 @@
 """
-Configuración centralizada de RabbitMQ para todos los microservicios
+Centralized RabbitMQ configuration for all microservices
 """
 import os
 from typing import Dict, List, Any
 
-# Configuración de RabbitMQ
+# RabbitMQ Configuration
 RABBITMQ_CONFIG = {
     "url": os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/"),
     
@@ -14,35 +14,35 @@ RABBITMQ_CONFIG = {
             "name": "user.events",
             "type": "topic",
             "durable": True,
-            "description": "Eventos del microservicio de Autenticación de Usuario"
+            "description": "Events from User Authentication microservice"
         },
         "content_events": {
             "name": "content.events", 
             "type": "topic",
             "durable": True,
-            "description": "Eventos del microservicio de Gestión de Contenidos"
+            "description": "Events from Content Management microservice"
         },
         "collaboration_events": {
             "name": "collaboration.events",
             "type": "topic", 
             "durable": True,
-            "description": "Eventos del microservicio de Colaboración de Usuarios"
+            "description": "Events from User Collaboration microservice"
         },
         "communication_events": {
             "name": "communication.events",
             "type": "topic",
             "durable": True,
-            "description": "Eventos del microservicio de Comunicación de Usuarios"
+            "description": "Events from User Communication microservice"
         },
         "moderation_events": {
             "name": "moderation.events",
             "type": "topic",
             "durable": True,
-            "description": "Eventos del microservicio de Moderación y Control de Calidad"
+            "description": "Events from Moderation and Quality Control microservice"
         }
     },
     
-    # Colas específicas por evento
+    # Specific queues per event
     "queues": {
         # Eventos de Usuario (Auth Service)
         "user_registered": {
@@ -148,9 +148,9 @@ RABBITMQ_CONFIG = {
     }
 }
 
-# Eventos específicos del sistema
+# Specific system events
 class SystemEvents:
-    """Eventos del sistema según la arquitectura"""
+    """System events according to architecture"""
     
     # Auth Service Events
     USER_REGISTERED = "user.registered"
@@ -183,7 +183,7 @@ class SystemEvents:
     MODERATION_REJECTED = "moderation.rejected"
     CONTENT_FLAGGED = "content.flagged"
 
-# Configuración de servicios por microservicio
+# Service configuration per microservice
 SERVICE_CONFIGS = {
     "auth-service": {
         "publishes": [

@@ -1,4 +1,4 @@
-# Configuración principal de Traefik
+# Main Traefik configuration
 api:
   dashboard: true
   insecure: true
@@ -20,6 +20,8 @@ entryPoints:
     address: ":80"
   websecure:
     address: ":443"
+  metrics:
+    address: ":8082"
 
 # Load Balancing
 serversTransport:
@@ -48,6 +50,13 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true
     addRoutersLabels: true
+    entryPoint: metrics
+    buckets:
+      - 0.1
+      - 0.3
+      - 1.0
+      - 3.0
+      - 5.0
 
 # Health Check
 ping: {}

@@ -12,7 +12,7 @@ async def get_db():
     if _client is None:
         _client = AsyncIOMotorClient(MONGO_URL)
         _db = _client[MONGO_DB]
-        # índices sugeridos
+        # suggested indexes
         await _db["threads"].create_index([("created_at", -1)])
         await _db["threads"].create_index([("title", "text")])
         await _db["comments"].create_index([("thread_id", 1), ("created_at", 1)])

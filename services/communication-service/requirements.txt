@@ -1,2 +1,9 @@
 fastapi
 uvicorn[standard]
+prometheus-client
+prometheus-fastapi-instrumentator
+aio-pika
+motor
+pymongo
+pyjwt
+pydantic

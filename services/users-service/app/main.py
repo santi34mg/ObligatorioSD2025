@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.db import get_async_session
 from app.models import User
@@ -11,6 +12,9 @@ from app.schemas import UserPublicInfo, UserDetailInfo, UserListResponse, UserUp
 from app.auth import get_current_active_user
 
 app = FastAPI(title="Users Service", version="1.0.0")
+
+# Initialize Prometheus metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 
 @app.get("/api/users/health")
@@ -73,6 +77,30 @@ async def list_users(
         page=page,
         page_size=page_size
     )
+
+
+@app.get("/api/users/public/{user_id}", response_model=UserPublicInfo)
+async def get_user_public(
+    user_id: uuid.UUID,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get public information about a specific user.
+    Does not require authentication (for displaying user info in posts).
+    """
+    # Query user by UUID
+    stmt = select(User).where(User.id == user_id)
+    result = await session.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id {user_id} not found"
+        )
+    
+    # Return public info only
+    return UserPublicInfo.model_validate(user)
 
 
 @app.get("/api/users/{user_id}", response_model=UserDetailInfo)

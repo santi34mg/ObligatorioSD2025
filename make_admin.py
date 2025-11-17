@@ -28,12 +28,12 @@ async def make_admin(email: str):
         user = result.scalar_one_or_none()
         
         if user is None:
-            print(f"❌ Error: User with email '{email}' not found.")
+            print(f"Error: User with email '{email}' not found.")
             print("Please register the user first through the application.")
             return False
         
         if user.role == 'admin':
-            print(f"ℹ️  User '{email}' is already an admin.")
+            print(f"User '{email}' is already an admin.")
             return True
         
         # Update user role
@@ -41,11 +41,11 @@ async def make_admin(email: str):
         await session.execute(stmt)
         await session.commit()
         
-        print(f"✅ Success! User '{email}' has been promoted to admin.")
+        print(f"Success! User '{email}' has been promoted to admin.")
         print(f"   User ID: {user.id}")
         print(f"   Previous role: {user.role}")
         print(f"   New role: admin")
-        print("\n⚠️  Note: The user needs to logout and login again to see admin features.")
+        print("\nNote: The user needs to logout and login again to see admin features.")
         return True
 
 
@@ -60,13 +60,13 @@ async def list_users():
             print("No users found in database.")
             return
         
-        print("\n📋 Users in database:")
+        print("\nUsers in database:")
         print("-" * 80)
         print(f"{'Email':<40} {'Role':<10} {'Active':<8} {'Verified':<10}")
         print("-" * 80)
         for user in users:
-            active = "✓" if user.is_active else "✗"
-            verified = "✓" if user.is_verified else "✗"
+            active = "Y" if user.is_active else "N"
+            verified = "Y" if user.is_verified else "N"
             print(f"{user.email:<40} {user.role:<10} {active:<8} {verified:<10}")
         print("-" * 80)
         print(f"Total users: {len(users)}")
@@ -81,11 +81,11 @@ async def demote_admin(email: str):
         user = result.scalar_one_or_none()
         
         if user is None:
-            print(f"❌ Error: User with email '{email}' not found.")
+            print(f"Error: User with email '{email}' not found.")
             return False
         
         if user.role == 'student':
-            print(f"ℹ️  User '{email}' is already a student.")
+            print(f"User '{email}' is already a student.")
             return True
         
         # Update user role
@@ -93,7 +93,7 @@ async def demote_admin(email: str):
         await session.execute(stmt)
         await session.commit()
         
-        print(f"✅ Success! User '{email}' has been demoted to student.")
+        print(f"Success! User '{email}' has been demoted to student.")
         print(f"   User ID: {user.id}")
         print(f"   Previous role: {user.role}")
         print(f"   New role: student")
@@ -114,7 +114,7 @@ def print_usage():
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("❌ Error: Missing arguments\n")
+        print("Error: Missing arguments\n")
         print_usage()
         sys.exit(1)
     
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         asyncio.run(list_users())
     elif command == "--demote":
         if len(sys.argv) < 3:
-            print("❌ Error: Email required for --demote\n")
+            print("Error: Email required for --demote\n")
             print_usage()
             sys.exit(1)
         email = sys.argv[2]

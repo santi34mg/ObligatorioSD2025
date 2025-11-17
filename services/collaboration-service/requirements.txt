@@ -4,3 +4,6 @@ pydantic
 pymongo
 motor
 python-dotenv
+prometheus-client
+prometheus-fastapi-instrumentator
+aio-pika

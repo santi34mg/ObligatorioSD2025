@@ -24,7 +24,7 @@ class Friendship(Base):
         nullable=False
     )
 
-    status = Column(String(20), nullable=False, default="pending")
+    status = Column("friendship_status", String(20), nullable=False, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

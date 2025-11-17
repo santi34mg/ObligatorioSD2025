@@ -40,9 +40,9 @@ async def insert_metadata(data: dict):
     # Add fecha_subida if not present
     if "fecha_subida" not in data:
         data["fecha_subida"] = datetime.utcnow()
-    # Add aprobado default if not present
+    # Auto-approve materials by default (can be changed for moderation workflow)
     if "aprobado" not in data:
-        data["aprobado"] = False
+        data["aprobado"] = True
     result = await db["materials"].insert_one(data)
     return str(result.inserted_id)
 

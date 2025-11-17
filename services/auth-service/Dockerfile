@@ -1,21 +1,21 @@
-# Usar imagen base de Python
+# Use Python base image
 FROM python:3.12-slim
 
-# Crear directorio de trabajo
+# Create working directory
 WORKDIR /app
 
-# Copiar dependencias e instalarlas
+# Copy dependencies and install them
 COPY services/auth-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar la aplicación
+# Copy the application
 COPY services/auth-service/app/ ./app/
 
 # CRITICAL: Copy shared module (located at project root)
 COPY shared/ ./shared/
 
-# Exponer puerto
+# Expose port
 EXPOSE 8000
 
-# Comando para levantar la app
+# Command to run the app
 CMD ["uvicorn", "app.app:app", "--host", "0.0.0.0", "--port", "8000"]

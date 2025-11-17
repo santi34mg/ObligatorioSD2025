@@ -43,7 +43,8 @@ async def get_current_user_optional(
         if user_id is None:
             return None
         user_uuid = uuid.UUID(user_id)
-        email = payload.get("email")
+        # Try to get email from JWT payload
+        email = payload.get("email") or payload.get("username")
         return CurrentUser(id=user_uuid, email=email)
     except (JWTError, ValueError):
         return None

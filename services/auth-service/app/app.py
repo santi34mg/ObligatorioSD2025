@@ -10,8 +10,12 @@ from shared.rabbitmq_client import create_rabbitmq_client, EventPublisher
 from shared.rabbitmq_config import SystemEvents
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
+
+# Initialize Prometheus metrics
+Instrumentator().instrument(app).expose(app)
 
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/api/auth/jwt", tags=["auth"]
@@ -101,11 +105,11 @@ async def authenticated_route(user: User = Depends(current_active_user)):
 
 @app.post("/api/auth/register-with-events")
 async def register_with_events(user_data: UserCreate):
-    """Endpoint de ejemplo que registra usuario y publica evento"""
+    """Example endpoint that registers user and publishes event"""
     global event_publisher
     
-    # Aquí normalmente crearías el usuario en la base de datos
-    # Por ahora simulamos el registro
+    # Here you would normally create the user in the database
+    # For now we simulate registration
     user_id = "user-123"
     
     # Publicar evento de usuario registrado 
@@ -129,6 +133,13 @@ async def on_startup():
     
     await create_db_and_tables()
     
+    # Create default admin user from environment variables
+    from app.init_admin import create_default_admin
+    try:
+        await create_default_admin()
+    except Exception as e:
+        print(f"Warning: Could not create default admin user: {e}")
+    
     # Conectar a RabbitMQ (con manejo de errores)
     try:
         rabbitmq_client = create_rabbitmq_client("auth-service")
@@ -140,10 +151,10 @@ async def on_startup():
             [SystemEvents.MODERATION_APPROVED, SystemEvents.MODERATION_REJECTED],
             handle_moderation_event
         )
-        print("✓ Auth service conectado a RabbitMQ")
+        print("Auth service connected to RabbitMQ")
     except Exception as e:
-        print(f"⚠ Warning: No se pudo conectar a RabbitMQ: {e}")
-        print("⚠ El servicio continuará sin eventos asíncronos")
+        print(f"Warning: Could not connect to RabbitMQ: {e}")
+        print("Service will continue without async events")
         rabbitmq_client = None
         event_publisher = None
 
@@ -156,6 +167,10 @@ async def on_shutdown():
         await rabbitmq_client.disconnect()
 
 async def handle_moderation_event(event_type: str, event_data: dict):
-    """Manejar eventos de moderación"""
-    print(f"Auth Service recibió evento de moderación: {event_type}")
+    """Handle moderation events"""
+    print(f"Auth Service received moderation event: {event_type}")
     print(f"Datos: {event_data.get('data', {})}")
+
+@app.get("/api/auth/health")
+async def health_check():
+    return {"status": "ok"}

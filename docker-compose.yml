@@ -51,6 +51,55 @@ services:
       - "traefik.http.routers.traefik-metrics.entrypoints=web"
       - "traefik.http.routers.traefik-metrics.service=prometheus@internal"
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus-config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://grafana.localhost
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-config/provisioning:/etc/grafana/provisioning
+      - ./grafana-config/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    networks:
+      - traefik
+    depends_on:
+      - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: rabbitmq
@@ -63,6 +112,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      - "15692:15692" # Prometheus metrics
     networks:
       - traefik
     labels:
@@ -70,6 +121,9 @@ services:
       - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)"
       - "traefik.http.routers.rabbitmq.entrypoints=web"
       - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+    command: >
+      bash -c "rabbitmq-plugins enable rabbitmq_prometheus && 
+               docker-entrypoint.sh rabbitmq-server"
 
   frontend:
     build:
@@ -84,7 +138,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Router para el frontend - exclude API paths y content paths
-      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api/**`) && !PathPrefix(`/content/**`)"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api`) && !PathPrefix(`/content`)"
       - "traefik.http.routers.frontend.entrypoints=web"
       - "traefik.http.routers.frontend.service=frontend"
       - "traefik.http.routers.frontend.priority=1"
@@ -102,6 +156,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
       - JWT_SECRET=${JWT_SECRET:-SECRET}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@umshare.com}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123!Change}
     labels:
       - "traefik.enable=true"
       # Router para API REST (HTTP y HTTPS) - all /api/auth and remaining /api/users paths
@@ -133,10 +189,16 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
       - JWT_SECRET=${JWT_SECRET:-SECRET}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
     labels:
       - "traefik.enable=true"
-      # Router para Friendship API
-      - "traefik.http.routers.friendship.rule=PathPrefix(`/api/friendships`)"
+      # Router para Friendship API (with /api prefix)
+      - "traefik.http.routers.friendship-api.rule=PathPrefix(`/api/friendships`)"
+      - "traefik.http.routers.friendship-api.entrypoints=web"
+      - "traefik.http.routers.friendship-api.service=friendship"
+      - "traefik.http.routers.friendship-api.priority=100"
+      # Router para Friendship API (without /api prefix) - for frontend compatibility
+      - "traefik.http.routers.friendship.rule=PathPrefix(`/friendships`)"
       - "traefik.http.routers.friendship.entrypoints=web"
       - "traefik.http.routers.friendship.service=friendship"
       - "traefik.http.routers.friendship.priority=100"
@@ -146,10 +208,13 @@ services:
       - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
       - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowheaders=*"
       - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.friendship-api.middlewares=friendship-cors"
       - "traefik.http.routers.friendship.middlewares=friendship-cors"
     depends_on:
       db:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - traefik
     ports:
@@ -197,11 +262,14 @@ services:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
       - JWT_SECRET=${JWT_SECRET:-SECRET}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
     depends_on:
       mongo:
         condition: service_started
       minio:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       # Router for /api/content paths
@@ -241,20 +309,25 @@ services:
       - "traefik.http.routers.moderation.service=moderation"
       - "traefik.http.services.moderation.loadbalancer.server.port=8001"
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - traefik
     restart: unless-stopped
 
   collaboration-service:
     build:
-      context: ./services/collaboration-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/collaboration-service/Dockerfile
     environment:
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_DB=umshare
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
     depends_on:
-      - mongo
+      mongo:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.collab.rule=PathPrefix(`/api/collab`)"
@@ -274,16 +347,27 @@ services:
 
   websocket-service:
     build:
-      context: ./services/websocket-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/websocket-service/Dockerfile
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
+      # Router for health endpoint (HTTP only)
+      - "traefik.http.routers.websocket-health.rule=Path(`/api/ws/health`)"
+      - "traefik.http.routers.websocket-health.entrypoints=web"
+      - "traefik.http.routers.websocket-health.priority=150"
+      - "traefik.http.routers.websocket-health.service=websocket"
+      # Router for WebSocket connections
       - "traefik.http.routers.websocket.rule=PathPrefix(`/api/ws`)"
       - "traefik.http.routers.websocket.entrypoints=web"
       - "traefik.http.routers.websocket.priority=100"
-      - "traefik.http.services.websocket.loadbalancer.server.port=8000"
-      # Configuración específica para WebSockets
       - "traefik.http.routers.websocket.middlewares=websocket-headers,websocket-cors"
+      - "traefik.http.services.websocket.loadbalancer.server.port=8000"
+      # Specific configuration for WebSockets
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Connection=Upgrade"
       - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Upgrade=websocket"
       # CORS headers
@@ -299,12 +383,19 @@ services:
 
   communication-service:
     build:
-      context: ./services/communication-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/communication-service/Dockerfile
     ports:
       - "8006:8000"
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      - MONGO_URI=mongodb://mongo:27017/umshare
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
     depends_on:
-      - mongo
+      mongo:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - traefik
     labels:
@@ -365,4 +456,5 @@ volumes:
   db_data:
   minio_data:
   mongo_data:
-
+  prometheus_data:
+  grafana_data:

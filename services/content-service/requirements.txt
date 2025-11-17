@@ -7,3 +7,6 @@ python-multipart
 pydantic
 python-jose[cryptography]
 httpx
+prometheus-client
+prometheus-fastapi-instrumentator
+aio-pika

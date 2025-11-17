@@ -16,7 +16,7 @@ http:
       chain:
         middlewares:
           - cors
-          - rate-limit-user # Usuarios autenticados tienen límites más altos
+          - rate-limit-user # Authenticated users have higher limits
           - security-headers
           - compress
 

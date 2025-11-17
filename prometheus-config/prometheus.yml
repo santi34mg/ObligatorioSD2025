@@ -1,0 +1,92 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: "umshare-distributed-system"
+    environment: "development"
+
+# Alertmanager configuration (optional - can be added later)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alerts/*.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Traefik metrics
+  - job_name: "traefik"
+    static_configs:
+      - targets: ["traefik:8082"]
+    metrics_path: "/metrics"
+
+  # RabbitMQ metrics
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq:15692"]
+    metrics_path: "/metrics"
+
+  # Auth Service
+  - job_name: "auth-service"
+    static_configs:
+      - targets: ["auth-service:8000"]
+    metrics_path: "/metrics"
+
+  # Friendship Service
+  - job_name: "friendship-service"
+    static_configs:
+      - targets: ["friendship-service:8001"]
+    metrics_path: "/metrics"
+
+  # Users Service
+  - job_name: "users-service"
+    static_configs:
+      - targets: ["users-service:8003"]
+    metrics_path: "/metrics"
+
+  # Content Service
+  - job_name: "content-service"
+    static_configs:
+      - targets: ["content-service:8000"]
+    metrics_path: "/metrics"
+
+  # Moderation Service
+  - job_name: "moderation-service"
+    static_configs:
+      - targets: ["moderation-service:8001"]
+    metrics_path: "/metrics"
+
+  # Collaboration Service
+  - job_name: "collaboration-service"
+    static_configs:
+      - targets: ["collaboration-service:8000"]
+    metrics_path: "/metrics"
+
+  # WebSocket Service
+  - job_name: "websocket-service"
+    static_configs:
+      - targets: ["websocket-service:8000"]
+    metrics_path: "/metrics"
+
+  # Communication Service
+  - job_name: "communication-service"
+    static_configs:
+      - targets: ["communication-service:8000"]
+    metrics_path: "/metrics"
+
+  # MongoDB Exporter (optional - requires separate exporter)
+  # - job_name: 'mongodb'
+  #   static_configs:
+  #     - targets: ['mongodb-exporter:9216']
+
+  # PostgreSQL Exporter (optional - requires separate exporter)
+  # - job_name: 'postgresql'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']

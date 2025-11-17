@@ -1,0 +1,401 @@
+version: "3.9"
+
+networks:
+  traefik:
+    driver: bridge
+
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: traefik
+    command:
+      # API Dashboard
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+
+      # Providers
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Entry Points
+      - "--entrypoints.web.address=:80"
+
+      # Service Discovery
+      - "--providers.docker.watch=true"
+
+      # Logging
+      - "--log.level=INFO"
+      - "--accesslog=true"
+
+      # Health Check
+      - "--ping=true"
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8081:8080" # Dashboard
+      - "8082:8082" # Metrics (Prometheus)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik-config:/etc/traefik:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=web"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      # Metrics
+      - "traefik.http.routers.traefik-metrics.rule=Host(`metrics.localhost`)"
+      - "traefik.http.routers.traefik-metrics.entrypoints=web"
+      - "traefik.http.routers.traefik-metrics.service=prometheus@internal"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus-config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.localhost`)"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://grafana.localhost
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-config/provisioning:/etc/grafana/provisioning
+      - ./grafana-config/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    networks:
+      - traefik
+    depends_on:
+      - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.localhost`)"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "15692:15692" # Prometheus metrics
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rabbitmq.rule=Host(`rabbitmq.localhost`)"
+      - "traefik.http.routers.rabbitmq.entrypoints=web"
+      - "traefik.http.services.rabbitmq.loadbalancer.server.port=15672"
+    command: >
+      bash -c "rabbitmq-plugins enable rabbitmq_prometheus && 
+               docker-entrypoint.sh rabbitmq-server"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      # Router para el frontend - exclude API paths y content paths
+      - "traefik.http.routers.frontend.rule=Host(`localhost`) && !PathPrefix(`/api/**`) && !PathPrefix(`/content/**`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    depends_on:
+      - traefik
+    networks:
+      - traefik
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
+      - DEFAULT_ADMIN_EMAIL=${DEFAULT_ADMIN_EMAIL:-admin@umshare.com}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123!Change}
+    labels:
+      - "traefik.enable=true"
+      # Router para API REST (HTTP y HTTPS) - all /api/auth and remaining /api/users paths
+      - "traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || PathPrefix(`/api/users`)"
+      - "traefik.http.routers.auth.entrypoints=web"
+      - "traefik.http.routers.auth.service=auth"
+      - "traefik.http.routers.auth.priority=100"
+      - "traefik.http.services.auth.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.auth-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.auth.middlewares=auth-cors"
+    depends_on:
+      db:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - traefik
+
+  friendship-service:
+    build:
+      context: .
+      dockerfile: services/friendship-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
+    labels:
+      - "traefik.enable=true"
+      # Router para Friendship API
+      - "traefik.http.routers.friendship.rule=PathPrefix(`/api/friendships`)"
+      - "traefik.http.routers.friendship.entrypoints=web"
+      - "traefik.http.routers.friendship.service=friendship"
+      - "traefik.http.routers.friendship.priority=100"
+      - "traefik.http.services.friendship.loadbalancer.server.port=8001"
+      # CORS headers
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.friendship-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.friendship.middlewares=friendship-cors"
+    depends_on:
+      db:
+        condition: service_started
+    networks:
+      - traefik
+
+  users-service:
+    build:
+      context: .
+      dockerfile: services/users-service/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/postgres
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
+    labels:
+      - "traefik.enable=true"
+      # Router para Users API - specific paths for users-service
+      - "traefik.http.routers.users-service.rule=Path(`/api/users/list`) || Path(`/api/users/health`)"
+      - "traefik.http.routers.users-service.entrypoints=web"
+      - "traefik.http.routers.users-service.service=users-service"
+      - "traefik.http.routers.users-service.priority=150"
+      - "traefik.http.services.users-service.loadbalancer.server.port=8003"
+      # CORS headers
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.users-service-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.routers.users-service.middlewares=users-service-cors"
+    depends_on:
+      db:
+        condition: service_started
+    networks:
+      - traefik
+
+  content-service:
+    build:
+      context: .
+      dockerfile: services/content-service/Dockerfile
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_DB=umshare
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+      - JWT_SECRET=${JWT_SECRET:-SECRET}
+    depends_on:
+      mongo:
+        condition: service_started
+      minio:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      # Router for /api/content paths
+      - "traefik.http.routers.content-api.rule=PathPrefix(`/api/content`)"
+      - "traefik.http.routers.content-api.entrypoints=web"
+      - "traefik.http.routers.content-api.priority=100"
+      - "traefik.http.routers.content-api.service=content"
+      - "traefik.http.routers.content-api.middlewares=content-cors"
+      # Router for /content paths (without /api) - for frontend compatibility
+      - "traefik.http.routers.content.rule=PathPrefix(`/content`)"
+      - "traefik.http.routers.content.entrypoints=web"
+      - "traefik.http.routers.content.priority=100"
+      - "traefik.http.routers.content.service=content"
+      - "traefik.http.routers.content.middlewares=content-cors"
+      # Service definition
+      - "traefik.http.services.content.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.content-cors.headers.accesscontrolallowcredentials=true"
+    networks:
+      - traefik
+
+  moderation-service:
+    build:
+      context: .
+      dockerfile: services/moderation-service/Dockerfile
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672/
+    labels:
+      - "traefik.enable=true"
+      # Router para Moderation Service (HTTP y HTTPS)
+      - "traefik.http.routers.moderation.rule=PathPrefix(`/api/moderation`)"
+      - "traefik.http.routers.moderation.entrypoints=web,websecure"
+      - "traefik.http.routers.moderation.priority=100"
+      - "traefik.http.routers.moderation.service=moderation"
+      - "traefik.http.services.moderation.loadbalancer.server.port=8001"
+    depends_on:
+      - rabbitmq
+    networks:
+      - traefik
+    restart: unless-stopped
+
+  collaboration-service:
+    build:
+      context: ./services/collaboration-service
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - MONGO_DB=umshare
+    depends_on:
+      - mongo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.collab.rule=PathPrefix(`/api/collab`)"
+      - "traefik.http.routers.collab.entrypoints=web"
+      - "traefik.http.routers.collab.priority=100"
+      - "traefik.http.routers.collab.middlewares=collab-cors"
+      - "traefik.http.services.collab.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.collab-cors.headers.accesscontrolallowcredentials=true"
+    networks:
+      - traefik
+
+  websocket-service:
+    build:
+      context: ./services/websocket-service
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.websocket.rule=PathPrefix(`/api/ws`)"
+      - "traefik.http.routers.websocket.entrypoints=web"
+      - "traefik.http.routers.websocket.priority=100"
+      - "traefik.http.services.websocket.loadbalancer.server.port=8000"
+      # Specific configuration for WebSockets
+      - "traefik.http.routers.websocket.middlewares=websocket-headers,websocket-cors"
+      - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Connection=Upgrade"
+      - "traefik.http.middlewares.websocket-headers.headers.customrequestheaders.Upgrade=websocket"
+      # CORS headers
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.websocket-cors.headers.accesscontrolallowcredentials=true"
+    networks:
+      - traefik
+    restart: unless-stopped
+
+  communication-service:
+    build:
+      context: ./services/communication-service
+      dockerfile: Dockerfile
+    depends_on:
+      - mongo
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.communication.rule=PathPrefix(`/api/communication`)"
+      - "traefik.http.routers.communication.entrypoints=web"
+      - "traefik.http.routers.communication.priority=100"
+      - "traefik.http.routers.communication.middlewares=communication-cors"
+      - "traefik.http.services.communication.loadbalancer.server.port=8000"
+      # CORS headers
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolalloworiginlist=http://localhost:5173,http://localhost"
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowmethods=GET,POST,PUT,DELETE,OPTIONS"
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.communication-cors.headers.accesscontrolallowcredentials=true"
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db-init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - traefik
+
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - traefik
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - traefik
+
+volumes:
+  db_data:
+  minio_data:
+  mongo_data:
+  prometheus_data:
+  grafana_data:

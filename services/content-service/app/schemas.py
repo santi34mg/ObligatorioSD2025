@@ -26,7 +26,7 @@ MaterialType = Literal[
     "Parcial de semestre anterior",
     "Examen de semestre anterior",
     "Apuntes",
-    "Práctico"
+    "Practico"
 ]
 
 # File formats according to MER
@@ -56,7 +56,7 @@ class MaterialInDB(BaseModel):
     fecha_subida: datetime
     tipo: Optional[MaterialType] = None
     formato: Optional[FileFormat] = None
-    tamaño: Optional[int] = None  # in bytes
+    size: Optional[int] = None  # in bytes
     aprobado: bool = False
     id_asignatura: Optional[str] = None
     id_usuario: Optional[str] = None
@@ -76,10 +76,14 @@ class PostResponse(BaseModel):
     id: int  # Frontend expects number, we'll use hash or index
     user: PostUser
     date: datetime
-    content: str  # This will be description or title+description
+    title: str  # Document title
+    content: str  # Document description
     commentCount: int = 0
     likes: int = 0
     image: Optional[str] = None  # Will be the file URL if it's an image
+    fileUrl: Optional[str] = None  # The file URL for non-image files
+    fileName: Optional[str] = None  # The original filename
+    fileType: Optional[str] = None  # The content type/MIME type
 
 
 class MaterialResponse(BaseModel):
@@ -93,7 +97,7 @@ class MaterialResponse(BaseModel):
     fecha_subida: datetime
     tipo: Optional[MaterialType] = None
     formato: Optional[FileFormat] = None
-    tamaño: Optional[int] = None
+    size: Optional[int] = None
     aprobado: bool = False
     content_type: str
 

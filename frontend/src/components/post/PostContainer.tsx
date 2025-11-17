@@ -1,4 +1,4 @@
-import { MessageCircle, Heart, Share2 } from "lucide-react";
+import { MessageCircle, Heart, Share2, FileText, Download } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -18,10 +18,14 @@ export interface Post {
   id: number;
   user: User;
   date: Date;
+  title: string;
   content: string;
   commentCount: number;
   likes: number;
   image?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
 }
 
 export function PostContainer({ post }: { post: Post }) {
@@ -39,6 +43,29 @@ export function PostContainer({ post }: { post: Post }) {
       .map((n) => n[0])
       .join("")
       .toUpperCase();
+  };
+
+  // Get file icon based on file type
+  const getFileIcon = (fileType?: string) => {
+    if (!fileType) return <FileText className="h-8 w-8" />;
+
+    if (fileType.includes("pdf")) {
+      return <FileText className="h-8 w-8 text-red-500" />;
+    } else if (fileType.includes("word") || fileType.includes("document")) {
+      return <FileText className="h-8 w-8 text-blue-500" />;
+    } else if (fileType.includes("sheet") || fileType.includes("excel")) {
+      return <FileText className="h-8 w-8 text-green-500" />;
+    } else if (
+      fileType.includes("presentation") ||
+      fileType.includes("powerpoint")
+    ) {
+      return <FileText className="h-8 w-8 text-orange-500" />;
+    } else if (fileType.includes("video")) {
+      return <FileText className="h-8 w-8 text-purple-500" />;
+    } else if (fileType.includes("audio")) {
+      return <FileText className="h-8 w-8 text-pink-500" />;
+    }
+    return <FileText className="h-8 w-8" />;
   };
 
   return (
@@ -59,7 +86,14 @@ export function PostContainer({ post }: { post: Post }) {
       </CardHeader>
 
       <CardContent className="space-y-4 pb-3">
-        <p className="text-sm text-foreground">{post.content}</p>
+        {post.title && (
+          <h3 className="text-lg font-semibold text-foreground">
+            {post.title}
+          </h3>
+        )}
+        <p className="text-sm text-foreground whitespace-pre-wrap">
+          {post.content}
+        </p>
         {post.image && (
           <div className="rounded-md overflow-hidden -mx-6">
             <img
@@ -67,6 +101,39 @@ export function PostContainer({ post }: { post: Post }) {
               alt="Post attachment"
               className="w-full h-auto object-cover"
             />
+          </div>
+        )}
+        {post.fileUrl && !post.image && (
+          <div className="border rounded-lg p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
+            <a
+              href={post.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 group"
+            >
+              <div className="flex-shrink-0">{getFileIcon(post.fileType)}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                  {post.fileName || "Attached file"}
+                </p>
+                {post.fileType && (
+                  <p className="text-xs text-muted-foreground">
+                    {post.fileType.split("/")[1]?.toUpperCase() || "File"}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="flex-shrink-0 text-muted-foreground group-hover:text-primary"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(post.fileUrl, "_blank");
+                }}
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </a>
           </div>
         )}
       </CardContent>

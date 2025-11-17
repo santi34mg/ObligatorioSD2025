@@ -2,6 +2,7 @@ import { PostContainer, type Post } from "../post/PostContainer";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "../ui/card";
 import { FloatingActionButton } from "./CreateButton";
+import { getPosts, convertPostDates } from "@/services/contentService";
 
 function EmptyFeedState() {
   return (
@@ -56,24 +57,62 @@ function EmptyFeedState() {
 
 function Feed() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        // FIXME: use axios or similar with proper base URL configuration and
-        // error handling as well as types
-        const response = await fetch("http://localhost/content/posts");
-        if (!response.ok) {
-          throw new Error("Failed to fetch posts");
-        }
-        const data = await response.json();
-        setPosts(data);
+        setIsLoading(true);
+        setError(null);
+
+        // Fetch posts using the content service
+        const data = await getPosts();
+
+        // Convert date strings to Date objects
+        const postsWithDates = data.map(convertPostDates);
+
+        setPosts(postsWithDates);
       } catch (error) {
         console.error("Error fetching posts:", error);
+        setError(
+          error instanceof Error ? error.message : "Failed to load posts"
+        );
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchPosts();
   }, []);
+
+  if (isLoading) {
+    return (
+      <div className="mb-6">
+        <FloatingActionButton />
+        <Card className="border-dashed border-2 bg-muted/30">
+          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
+            <div className="animate-pulse text-muted-foreground">
+              Loading posts...
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-6">
+        <FloatingActionButton />
+        <Card className="border-dashed border-2 bg-destructive/10">
+          <CardContent className="flex flex-col items-center justify-center py-16 px-6">
+            <div className="text-destructive mb-2">Failed to load posts</div>
+            <div className="text-sm text-muted-foreground">{error}</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!posts || posts.length === 0) {
     return (

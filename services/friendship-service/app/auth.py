@@ -43,7 +43,13 @@ async def get_current_user(
     )
     
     try:
-        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+        # fastapi-users includes audience in JWT, so we need to decode with options to ignore it
+        payload = jwt.decode(
+            token,
+            SECRET,
+            algorithms=[ALGORITHM],
+            options={"verify_aud": False}  # Disable audience verification
+        )
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -53,7 +59,7 @@ async def get_current_user(
     
     # Verify user exists in database and get user details
     result = await session.execute(
-        text("SELECT id, email, is_active FROM \"user\" WHERE id = :user_id"),
+        text("SELECT id, email, is_active FROM auth.\"user\" WHERE id = :user_id"),
         {"user_id": str(user_uuid)}
     )
     user_row = result.first()

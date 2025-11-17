@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from sqlalchemy import select, or_, and_, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.db import get_async_session, create_db_and_tables
 from app.models import Friendship
@@ -15,14 +16,42 @@ from app.schemas import (
     FriendWithDetails,
 )
 from app.auth import get_current_active_user, User
+from shared.rabbitmq_client import create_rabbitmq_client, EventPublisher
+from shared.rabbitmq_config import SystemEvents
 
 app = FastAPI(title="Friendship Service")
 
+# Initialize Prometheus metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+# RabbitMQ global client
+rabbitmq_client = None
+event_publisher = None
 
 @app.on_event("startup")
 async def on_startup():
-    """Create database tables on startup"""
+    """Create database tables on startup and connect to RabbitMQ"""
+    global rabbitmq_client, event_publisher
+    
     await create_db_and_tables()
+    
+    # Connect to RabbitMQ (with error handling)
+    try:
+        rabbitmq_client = create_rabbitmq_client("friendship-service")
+        await rabbitmq_client.connect()
+        event_publisher = EventPublisher(rabbitmq_client)
+        
+        # Subscribe to user events
+        await rabbitmq_client.consume_events(
+            [SystemEvents.USER_REGISTERED, SystemEvents.USER_DELETED],
+            handle_user_event
+        )
+        print("Friendship service connected to RabbitMQ")
+    except Exception as e:
+        print(f"Warning: Could not connect to RabbitMQ: {e}")
+        print("Service will continue without async events")
+        rabbitmq_client = None
+        event_publisher = None
 
 
 @app.get("/api/friendships/health")
@@ -49,7 +78,7 @@ async def send_friend_request(
     
     # Check if user exists
     result = await session.execute(
-        text("SELECT id FROM \"user\" WHERE id = :friend_id"),
+        text("SELECT id FROM auth.\"user\" WHERE id = :friend_id"),
         {"friend_id": str(request.friend_id)}
     )
     if not result.first():
@@ -84,6 +113,19 @@ async def send_friend_request(
     session.add(new_friendship)
     await session.commit()
     await session.refresh(new_friendship)
+    
+    # Publish event
+    global event_publisher
+    if event_publisher:
+        await event_publisher.publish_event(
+            "friendship.request_sent",
+            {
+                "user_id": str(current_user.id),
+                "friend_id": str(request.friend_id),
+                "friendship_id": str(new_friendship.id),
+                "action": "friend_request_sent"
+            }
+        )
     
     return new_friendship
 
@@ -130,6 +172,20 @@ async def accept_friend_request(
     await session.commit()
     await session.refresh(friendship)
     
+    # Publish event
+    global event_publisher
+    if event_publisher:
+        await event_publisher.publish_event(
+            "friendship.accepted",
+            {
+                "user_id": str(friendship.user_id),
+                "friend_id": str(friendship.friend_id),
+                "friendship_id": str(friendship.id),
+                "accepted_by": str(current_user.id),
+                "action": "friend_request_accepted"
+            }
+        )
+    
     return friendship
 
 
@@ -166,6 +222,20 @@ async def block_user(
     
     await session.commit()
     await session.refresh(friendship)
+    
+    # Publish event
+    global event_publisher
+    if event_publisher:
+        await event_publisher.publish_event(
+            "friendship.blocked",
+            {
+                "user_id": str(friendship.user_id),
+                "friend_id": str(friendship.friend_id),
+                "friendship_id": str(friendship.id),
+                "blocked_by": str(current_user.id),
+                "action": "user_blocked"
+            }
+        )
     
     return friendship
 
@@ -230,10 +300,9 @@ async def remove_friend(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Remove a friendship / unfriend / cancel friend request.
-    Deletes the friendship record.
+    Remove a friendship (either accepted or pending).
     """
-    # Find the friendship (in either direction)
+    # Find friendship in either direction
     stmt = select(Friendship).where(
         or_(
             and_(Friendship.user_id == current_user.id, Friendship.friend_id == friend_id),
@@ -249,8 +318,36 @@ async def remove_friend(
             detail="Friendship not found"
         )
     
-    # Delete the friendship
     await session.delete(friendship)
     await session.commit()
     
-    return None
+    # Publish event
+    global event_publisher
+    if event_publisher:
+        await event_publisher.publish_event(
+            "friendship.removed",
+            {
+                "user_id": str(current_user.id),
+                "friend_id": str(friend_id),
+                "action": "friendship_removed"
+            }
+        )
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Disconnect from RabbitMQ"""
+    global rabbitmq_client
+    
+    if rabbitmq_client:
+        await rabbitmq_client.disconnect()
+
+
+async def handle_user_event(event_type: str, event_data: dict):
+    """Handle user events from auth-service"""
+    print(f"Friendship Service received user event: {event_type}")
+    print(f"Data: {event_data.get('data', {})}")
+    
+    # TODO: Implement business logic based on user events
+    # For example, if a user is deleted, remove all their friendships
+

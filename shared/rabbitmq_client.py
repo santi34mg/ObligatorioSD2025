@@ -16,7 +16,7 @@ from .rabbitmq_config import RABBITMQ_CONFIG, SystemEvents, SERVICE_CONFIGS
 logger = logging.getLogger(__name__)
 
 class RabbitMQClient:
-    """Cliente RabbitMQ para comunicación asíncrona entre microservicios"""
+    """RabbitMQ Client for asynchronous communication between microservices"""
     
     def __init__(self, service_name: str):
         self.service_name = service_name
@@ -109,10 +109,10 @@ class RabbitMQClient:
         # Publicar mensaje
         await exchange.publish(message, routing_key=final_routing_key)
         
-        logger.info(f"{self.service_name} publicó evento '{event_type}': {data}")
+        logger.info(f"{self.service_name} published event '{event_type}': {data}")
 
     async def consume_events(self, event_types: List[str], callback: Callable):
-        """Consumir eventos específicos"""
+        """Consume specific events"""
         if not self.channel:
             await self.connect()
         
@@ -146,7 +146,7 @@ class RabbitMQClient:
             logger.info(f"{self.service_name} escuchando eventos '{event_type}' en queue '{queue_config['name']}'")
 
     async def _consume_messages(self, queue, callback: Callable, event_type: str):
-        """Consumir mensajes de una queue específica"""
+        """Consume messages from a specific queue"""
         async with queue.iterator() as queue_iter:
             async for message in queue_iter:
                 async with message.process():
@@ -164,7 +164,7 @@ class RabbitMQClient:
                         
 
     def _get_exchange_for_event(self, event_type: str) -> str:
-        """Obtener el exchange correcto para un tipo de evento"""
+        """Get the correct exchange for an event type"""
         if event_type.startswith("user."):
             return "user.events"
         elif event_type.startswith("content."):
@@ -179,7 +179,7 @@ class RabbitMQClient:
             return "user.events"  # Default
 
     def _get_queue_config_for_event(self, event_type: str) -> Dict:
-        """Obtener configuración de queue para un tipo de evento"""
+        """Get queue configuration for an event type"""
         queue_key = event_type.replace(".", "_")
         if queue_key in RABBITMQ_CONFIG["queues"]:
             return RABBITMQ_CONFIG["queues"][queue_key]
@@ -192,12 +192,16 @@ class RabbitMQClient:
                 "durable": True
             }
 
-# Funciones de utilidad para eventos específicos
+# Utility functions for specific events
 class EventPublisher:
-    """Clase helper para publicar eventos comunes"""
+    """Helper class to publish common events"""
     
     def __init__(self, client: RabbitMQClient):
         self.client = client
+    
+    async def publish_event(self, event_type: str, data: Dict[str, Any], routing_key: Optional[str] = None):
+        """Publish generic event"""
+        await self.client.publish_event(event_type, data, routing_key)
     
     async def publish_user_registered(self, user_data: Dict[str, Any]):
         """Publicar evento de usuario registrado"""
@@ -216,10 +220,10 @@ class EventPublisher:
         await self.client.publish_event(SystemEvents.MESSAGE_SENT, message_data)
     
     async def publish_moderation_review(self, review_data: Dict[str, Any]):
-        """Publicar evento de revisión de moderación"""
+        """Publish moderation review event"""
         await self.client.publish_event(SystemEvents.MODERATION_REVIEW, review_data)
 
-# Factory function para crear clientes
+# Factory function to create clients
 def create_rabbitmq_client(service_name: str) -> RabbitMQClient:
-    """Crear cliente RabbitMQ para un servicio específico"""
+    """Create RabbitMQ client for a specific service"""
     return RabbitMQClient(service_name)

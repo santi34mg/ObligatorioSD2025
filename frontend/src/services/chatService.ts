@@ -42,7 +42,7 @@ export interface CreateChatRequest {
  */
 export async function fetchChats(): Promise<Chat[]> {
   try {
-    const chats = await apiGet<Chat[]>("/communication/chats");
+    const chats = await apiGet<Chat[]>("/api/communication/chats");
     return chats;
   } catch (error) {
     console.error("Error fetching chats:", error);

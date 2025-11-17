@@ -2,22 +2,79 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from typing import Optional, List
 from datetime import datetime
 from bson import ObjectId
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.db import get_db
 from app.schemas import ThreadCreate, ThreadOut, CommentCreate, CommentOut, UserMeta, oid_str
+from shared.rabbitmq_client import create_rabbitmq_client, EventPublisher
+from shared.rabbitmq_config import SystemEvents
 
 app = FastAPI(title="Collaboration Service", version="1.0.0")
 
-# Tomamos usuario de headers (hasta que esté el auth-service)
+# Initialize Prometheus metrics
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+
+# RabbitMQ global client
+rabbitmq_client = None
+event_publisher = None
+
+# Get user from headers (until auth-service is ready)
 async def current_user(
     x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_user_name: Optional[str] = Header(default=None, alias="X-User-Name"),
 ) -> UserMeta:
     return UserMeta(user_id=x_user_id, name=x_user_name)
 
-@app.get("/api/health")
+@app.get("/api/collaboration/health")
 async def health():
     return {"status": "ok"}
+
+@app.get("/api/collab/health")
+async def health_alias():
+    """Health check with short alias"""
+    return {"status": "ok"}
+
+
+@app.on_event("startup")
+async def on_startup():
+    """Connect to RabbitMQ on startup"""
+    global rabbitmq_client, event_publisher
+    
+    # Connect to RabbitMQ (with error handling)
+    try:
+        rabbitmq_client = create_rabbitmq_client("collaboration-service")
+        await rabbitmq_client.connect()
+        event_publisher = EventPublisher(rabbitmq_client)
+        
+        # Subscribe to moderation events
+        await rabbitmq_client.consume_events(
+            [SystemEvents.MODERATION_APPROVED, SystemEvents.MODERATION_REJECTED],
+            handle_moderation_event
+        )
+        print("Collaboration service connected to RabbitMQ")
+    except Exception as e:
+        print(f"Warning: Could not connect to RabbitMQ: {e}")
+        print("Service will continue without async events")
+        rabbitmq_client = None
+        event_publisher = None
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Disconnect from RabbitMQ"""
+    global rabbitmq_client
+    
+    if rabbitmq_client:
+        await rabbitmq_client.disconnect()
+
+
+async def handle_moderation_event(event_type: str, event_data: dict):
+    """Handle moderation events from moderation-service"""
+    print(f"Collaboration Service received moderation event: {event_type}")
+    print(f"Data: {event_data.get('data', {})}")
+    
+    # TODO: Update thread/comment status based on moderation results
+
 
 # Crear hilo
 @app.post("/api/threads", response_model=ThreadOut)
@@ -29,7 +86,7 @@ async def create_thread(payload: ThreadCreate, db=Depends(get_db), user: UserMet
         "created_at": datetime.utcnow(),
         "created_by": user.model_dump(),
         "comments_count": 0,
-        "status": "published",  # para moderación futura
+        "status": "published",  # for future moderation
     }
     res = await db["threads"].insert_one(doc)
     out = ThreadOut(
@@ -41,6 +98,21 @@ async def create_thread(payload: ThreadCreate, db=Depends(get_db), user: UserMet
         created_by=user,
         comments_count=0,
     )
+    
+    # Publish event
+    global event_publisher
+    if event_publisher:
+        await event_publisher.publish_event(
+            "collaboration.thread_created",
+            {
+                "thread_id": str(res.inserted_id),
+                "title": doc["title"],
+                "created_by": user.user_id,
+                "tags": doc["tags"],
+                "action": "thread_created"
+            }
+        )
+    
     return out
 
 # Listar hilos
@@ -49,7 +121,7 @@ async def list_threads(db=Depends(get_db), q: Optional[str] = None, limit: int =
     coll = db["threads"]
     find = {"status": "published"}
     if q:
-        # búsqueda simple por título (índice text)
+        # simple search by title (text index)
         find = {"$and": [find, {"$text": {"$search": q}}]}
     cursor = coll.find(find).sort("created_at", -1).skip(skip).limit(min(limit, 100))
     items = []
@@ -102,13 +174,28 @@ async def add_comment(thread_id: str, payload: CommentCreate, db=Depends(get_db)
     # aumentar contador
     await db["threads"].update_one({"_id": ObjectId(thread_id)}, {"$inc": {"comments_count": 1}})
 
-    return CommentOut(
+    comment_out = CommentOut(
         id=str(res.inserted_id),
         thread_id=thread_id,
         body=payload.body,
         created_at=doc["created_at"],
         created_by=user,
     )
+    
+    # Publish event
+    global event_publisher
+    if event_publisher:
+        await event_publisher.publish_event(
+            "collaboration.comment_created",
+            {
+                "comment_id": str(res.inserted_id),
+                "thread_id": thread_id,
+                "created_by": user.user_id,
+                "action": "comment_created"
+            }
+        )
+    
+    return comment_out
 
 # Listar comentarios de un hilo
 @app.get("/api/threads/{thread_id}/comments", response_model=List[CommentOut])
